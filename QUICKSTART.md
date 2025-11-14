@@ -32,9 +32,6 @@ Create `apps/api/.env`:
 # Database
 DATABASE_URL="postgresql://user:password@localhost:5432/videgen"
 
-# JWT Secret (generate with: openssl rand -base64 32)
-JWT_SECRET="your-super-secret-jwt-key-here"
-
 # OpenAI API Key (for script generation)
 OPENAI_API_KEY="sk-..."
 
@@ -86,14 +83,14 @@ NODE_ENV=development
 # Navigate to backend
 cd apps/api
 
-# Generate Prisma client
-pnpm prisma generate
+# Generate migrations from schema
+pnpm drizzle-kit generate
 
-# Run migrations
-pnpm prisma migrate dev --name init
+# Apply migrations to database
+pnpm drizzle-kit migrate
 
 # (Optional) Seed database with sample data
-pnpm prisma db seed
+pnpm tsx src/db/seed.ts
 ```
 
 ## Step 4: Start Development Servers
@@ -125,19 +122,16 @@ pnpm dev
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:3001
-- **Prisma Studio**: `cd apps/api && pnpm prisma studio`
+- **Drizzle Studio**: `cd apps/api && pnpm drizzle-kit studio`
 
 ## Step 6: Create Your First Video
 
-1. **Register an Account**
-   - Navigate to http://localhost:3000/register
-   - Create your account
-
-2. **Create a Project**
+1. **Create a Project**
+   - Navigate to http://localhost:3000
    - Click "New Project"
    - Give it a name (e.g., "Educational Videos")
 
-3. **Generate a Video**
+2. **Generate a Video**
    - Click "Create Video"
    - Enter topic: "How long does it take to plant rice until ready for harvest?"
    - Click "Generate Script"
@@ -184,14 +178,14 @@ Error: Invalid API key for OpenAI
 ### Issue: Module Not Found
 
 ```
-Error: Cannot find module '@prisma/client'
+Error: Cannot find module 'drizzle-orm'
 ```
 
 **Solution**:
 ```bash
 cd apps/api
 pnpm install
-pnpm prisma generate
+pnpm drizzle-kit generate
 ```
 
 ### Issue: Port Already in Use
@@ -225,8 +219,8 @@ videgen/
 │       ├── src/
 │       │   ├── routes/   # API endpoints
 │       │   ├── services/ # Business logic
-│       │   └── db/       # Database client
-│       └── prisma/       # Database schema
+│       │   └── db/       # Database client & schema
+│       └── drizzle/      # Database migrations
 │
 ├── packages/
 │   └── shared/           # Shared types
@@ -268,9 +262,9 @@ cd apps/api
 touch src/routes/my-route.ts
 
 # Update database schema
-# Edit prisma/schema.prisma, then:
-pnpm prisma migrate dev --name add_my_table
-pnpm prisma generate
+# Edit src/db/schema.ts, then:
+pnpm drizzle-kit generate
+pnpm drizzle-kit migrate
 
 # Run type checking
 pnpm type-check
@@ -294,17 +288,20 @@ pnpm test:e2e
 ```bash
 cd apps/api
 
-# Open Prisma Studio (GUI for database)
-pnpm prisma studio
+# Open Drizzle Studio (GUI for database)
+pnpm drizzle-kit studio
 
-# Reset database (WARNING: deletes all data)
-pnpm prisma migrate reset
+# Generate migration from schema changes
+pnpm drizzle-kit generate
 
-# Generate migration without applying
-pnpm prisma migrate dev --create-only
+# Apply migrations
+pnpm drizzle-kit migrate
 
-# Apply migrations in production
-pnpm prisma migrate deploy
+# Drop all tables (WARNING: deletes all data)
+pnpm drizzle-kit drop
+
+# Push schema changes directly (dev only, skips migrations)
+pnpm drizzle-kit push
 ```
 
 ---

@@ -24,7 +24,7 @@
 ### Backend
 - **Hono.js** - Fast, lightweight web framework
 - **PostgreSQL** - Reliable relational database
-- **Prisma** - Type-safe database ORM
+- **Drizzle ORM** - Type-safe database toolkit
 
 ### AI Services
 - **Google Veo 3** - Advanced video generation
@@ -57,7 +57,8 @@ cp apps/web/.env.local.example apps/web/.env.local
 
 # Run database migrations
 cd apps/api
-pnpm prisma migrate dev
+pnpm drizzle-kit generate
+pnpm drizzle-kit migrate
 
 # Start development servers
 cd ../..

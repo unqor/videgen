@@ -13,17 +13,17 @@
 - [ ] Set up ESLint and Prettier
 - [ ] Configure Git hooks (Husky)
 
-### Week 2: Database & Authentication
-- [ ] Design and implement Prisma schema
+### Week 2: Database Setup
+- [ ] Design and implement Drizzle ORM schema
 - [ ] Set up PostgreSQL database (local + cloud)
-- [ ] Run initial migrations
-- [ ] Implement JWT authentication
-- [ ] Create user registration endpoint
-- [ ] Create user login endpoint
-- [ ] Implement password hashing (bcrypt)
-- [ ] Create auth middleware
-- [ ] Build login/register UI pages
-- [ ] Implement protected routes
+- [ ] Configure drizzle.config.ts
+- [ ] Generate and run initial migrations
+- [ ] Create database client with connection pooling
+- [ ] Set up database seeding script
+- [ ] Test database CRUD operations
+- [ ] Configure environment variables
+- [ ] Set up CORS and rate limiting middleware
+- [ ] Implement error handling middleware
 
 ### Week 3: Core Video Flow (Part 1)
 - [ ] Create project CRUD operations
@@ -251,7 +251,7 @@
 - [ ] Add Zapier integration
 - [ ] Create API documentation for third-party
 - [ ] Build developer portal
-- [ ] Implement OAuth for integrations
+- [ ] Add API key support for integrations
 
 ### Week 20: Mobile & PWA
 - [ ] Implement responsive design

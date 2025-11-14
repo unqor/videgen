@@ -33,7 +33,7 @@
 - **Image Recommendations**: OpenAI DALL-E / Stability AI / Unsplash API
 
 ### Database & Storage
-- **Database**: PostgreSQL (with Prisma ORM)
+- **Database**: PostgreSQL (with Drizzle ORM)
 - **File Storage**: Cloud Storage (Google Cloud Storage / AWS S3)
 - **Cache**: Redis (optional, for job queuing)
 
@@ -51,13 +51,9 @@ videgen/
 ├── apps/
 │   ├── web/                    # Next.js frontend
 │   │   ├── app/
-│   │   │   ├── (auth)/
-│   │   │   │   ├── login/
-│   │   │   │   └── register/
-│   │   │   ├── (dashboard)/
-│   │   │   │   ├── projects/
-│   │   │   │   ├── videos/
-│   │   │   │   └── settings/
+│   │   │   ├── projects/
+│   │   │   ├── videos/
+│   │   │   ├── settings/
 │   │   │   ├── api/            # API routes (if needed)
 │   │   │   ├── layout.tsx
 │   │   │   └── page.tsx
@@ -92,16 +88,15 @@ videgen/
 │       │   │   ├── image-recommender.service.ts
 │       │   │   └── video-assembler.service.ts
 │       │   ├── middleware/
-│       │   │   ├── auth.ts
 │       │   │   ├── error-handler.ts
-│       │   │   └── rate-limit.ts
+│       │   │   ├── cors.ts
+│       │   │   └── logger.ts
 │       │   ├── db/
-│       │   │   └── client.ts
+│       │   │   ├── index.ts
+│       │   │   └── schema.ts
 │       │   ├── types/
 │       │   ├── utils/
 │       │   └── index.ts
-│       ├── prisma/
-│       │   └── schema.prisma
 │       └── package.json
 │
 ├── packages/
@@ -128,107 +123,170 @@ videgen/
 
 ## Database Schema
 
-### Users
-```prisma
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  passwordHash  String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  projects      Project[]
-  apiKeys       ApiKey[]
-}
-```
+> Using **Drizzle ORM** for type-safe database access. No authentication required - personal use only.
 
 ### Projects
-```prisma
-model Project {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id])
-  videos      Video[]
-}
+```typescript
+import { pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { createId } from '@paralleldrive/cuid2';
+
+export const projects = pgTable('projects', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 ```
 
 ### Videos
-```prisma
-model Video {
-  id              String        @id @default(cuid())
-  projectId       String
-  title           String
-  topic           String
-  script          String        @db.Text
-  status          VideoStatus   @default(DRAFT)
-  audioUrl        String?
-  videoUrl        String?
-  thumbnailUrl    String?
-  duration        Int?          // in seconds
-  metadata        Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  project         Project       @relation(fields: [projectId], references: [id])
-  scriptSections  ScriptSection[]
-  imageTimestamps ImageTimestamp[]
-}
+```typescript
+import { pgTable, text, timestamp, varchar, integer, jsonb, pgEnum } from 'drizzle-orm/pg-core';
+import { createId } from '@paralleldrive/cuid2';
+import { projects } from './projects';
 
-enum VideoStatus {
-  DRAFT
-  SCRIPT_GENERATED
-  AUDIO_GENERATING
-  AUDIO_READY
-  IMAGES_SELECTED
-  VIDEO_GENERATING
-  COMPLETED
-  FAILED
-}
+export const videoStatusEnum = pgEnum('video_status', [
+  'draft',
+  'script_generated',
+  'audio_generating',
+  'audio_ready',
+  'images_selected',
+  'video_generating',
+  'completed',
+  'failed',
+]);
+
+export const videos = pgTable('videos', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  projectId: varchar('project_id', { length: 128 }).references(() => projects.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  topic: text('topic').notNull(),
+  script: text('script'),
+  status: videoStatusEnum('status').default('draft').notNull(),
+  audioUrl: text('audio_url'),
+  videoUrl: text('video_url'),
+  thumbnailUrl: text('thumbnail_url'),
+  duration: integer('duration'), // in seconds
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 ```
 
-### ScriptSections
-```prisma
-model ScriptSection {
-  id        String   @id @default(cuid())
-  videoId   String
-  order     Int
-  content   String   @db.Text
-  startTime Float?   // in seconds
-  endTime   Float?   // in seconds
-  createdAt DateTime @default(now())
-  video     Video    @relation(fields: [videoId], references: [id])
-}
+### Script Sections
+```typescript
+import { pgTable, text, timestamp, varchar, integer, real } from 'drizzle-orm/pg-core';
+import { createId } from '@paralleldrive/cuid2';
+import { videos } from './videos';
+
+export const scriptSections = pgTable('script_sections', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  videoId: varchar('video_id', { length: 128 }).references(() => videos.id, { onDelete: 'cascade' }).notNull(),
+  order: integer('order').notNull(),
+  content: text('content').notNull(),
+  startTime: real('start_time'), // in seconds
+  endTime: real('end_time'), // in seconds
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 ```
 
-### ImageTimestamps
-```prisma
-model ImageTimestamp {
-  id          String   @id @default(cuid())
-  videoId     String
-  imageUrl    String
-  imagePrompt String?
-  timestamp   Float    // in seconds
-  duration    Float    // how long to show image
-  order       Int
-  createdAt   DateTime @default(now())
-  video       Video    @relation(fields: [videoId], references: [id])
-}
+### Image Timestamps
+```typescript
+import { pgTable, text, timestamp, varchar, integer, real } from 'drizzle-orm/pg-core';
+import { createId } from '@paralleldrive/cuid2';
+import { videos } from './videos';
+
+export const imageTimestamps = pgTable('image_timestamps', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  videoId: varchar('video_id', { length: 128 }).references(() => videos.id, { onDelete: 'cascade' }).notNull(),
+  imageUrl: text('image_url').notNull(),
+  imagePrompt: text('image_prompt'),
+  timestamp: real('timestamp').notNull(), // in seconds
+  duration: real('duration').notNull(), // how long to show image
+  order: integer('order').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 ```
 
-### ApiKeys
-```prisma
-model ApiKey {
-  id          String   @id @default(cuid())
-  userId      String
-  service     String   // "google_veo3", "openai", "elevenlabs"
-  key         String   @db.Text
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id])
-}
+### Complete Schema File Example
+```typescript
+// apps/api/src/db/schema.ts
+import { pgTable, text, timestamp, varchar, integer, real, jsonb, pgEnum } from 'drizzle-orm/pg-core';
+import { createId } from '@paralleldrive/cuid2';
+
+// Enums
+export const videoStatusEnum = pgEnum('video_status', [
+  'draft',
+  'script_generated',
+  'audio_generating',
+  'audio_ready',
+  'images_selected',
+  'video_generating',
+  'completed',
+  'failed',
+]);
+
+// Projects table
+export const projects = pgTable('projects', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Videos table
+export const videos = pgTable('videos', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  projectId: varchar('project_id', { length: 128 }).references(() => projects.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  topic: text('topic').notNull(),
+  script: text('script'),
+  status: videoStatusEnum('status').default('draft').notNull(),
+  audioUrl: text('audio_url'),
+  videoUrl: text('video_url'),
+  thumbnailUrl: text('thumbnail_url'),
+  duration: integer('duration'),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Script sections table
+export const scriptSections = pgTable('script_sections', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  videoId: varchar('video_id', { length: 128 }).references(() => videos.id, { onDelete: 'cascade' }).notNull(),
+  order: integer('order').notNull(),
+  content: text('content').notNull(),
+  startTime: real('start_time'),
+  endTime: real('end_time'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Image timestamps table
+export const imageTimestamps = pgTable('image_timestamps', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  videoId: varchar('video_id', { length: 128 }).references(() => videos.id, { onDelete: 'cascade' }).notNull(),
+  imageUrl: text('image_url').notNull(),
+  imagePrompt: text('image_prompt'),
+  timestamp: real('timestamp').notNull(),
+  duration: real('duration').notNull(),
+  order: integer('order').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Type exports for TypeScript
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
+
+export type Video = typeof videos.$inferSelect;
+export type NewVideo = typeof videos.$inferInsert;
+
+export type ScriptSection = typeof scriptSections.$inferSelect;
+export type NewScriptSection = typeof scriptSections.$inferInsert;
+
+export type ImageTimestamp = typeof imageTimestamps.$inferSelect;
+export type NewImageTimestamp = typeof imageTimestamps.$inferInsert;
 ```
 
 ---
@@ -568,8 +626,7 @@ async generateVideo(params: Veo3Params): Promise<string> {
 
 ### Phase 1: Core Functionality (MVP)
 - [ ] Project setup (Next.js + Hono.js monorepo)
-- [ ] Database schema & Prisma setup
-- [ ] User authentication (email/password)
+- [ ] Database schema & Drizzle ORM setup
 - [ ] Video topic input
 - [ ] Script generation (OpenAI integration)
 - [ ] Script editor (basic text editing)
@@ -702,17 +759,37 @@ pnpm add shadcn-ui @radix-ui/react-* zod react-hook-form
 pnpm add lucide-react date-fns clsx tailwind-merge
 
 cd ../api
-pnpm add @hono/node-server @prisma/client
-pnpm add -D prisma
+pnpm add @hono/node-server drizzle-orm postgres
+pnpm add @paralleldrive/cuid2
+pnpm add -D drizzle-kit
 ```
 
 ### 2. Database Setup
 ```bash
 cd apps/api
-npx prisma init
-# Edit prisma/schema.prisma
-npx prisma migrate dev --name init
-npx prisma generate
+
+# Create database configuration
+mkdir -p src/db
+
+# Create drizzle.config.ts at root
+cat > drizzle.config.ts << 'EOF'
+import type { Config } from 'drizzle-kit';
+
+export default {
+  schema: './src/db/schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql',
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+} satisfies Config;
+EOF
+
+# Generate migrations
+pnpm drizzle-kit generate
+
+# Apply migrations
+pnpm drizzle-kit migrate
 ```
 
 ### 3. Environment Variables
@@ -722,13 +799,12 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # apps/api/.env
-DATABASE_URL="postgresql://..."
+DATABASE_URL="postgresql://user:password@localhost:5432/videgen"
 GOOGLE_CLOUD_PROJECT_ID=
 GOOGLE_CLOUD_API_KEY=
 OPENAI_API_KEY=
 ELEVENLABS_API_KEY=
 UNSPLASH_ACCESS_KEY=
-JWT_SECRET=
 STORAGE_BUCKET=
 ```
 
@@ -773,21 +849,18 @@ pnpm dev
 
 ## Security Considerations
 
-### Authentication
-- JWT tokens with httpOnly cookies
-- Refresh token rotation
-- Rate limiting on auth endpoints
+> **Note**: This is a personal-use application with no authentication system.
 
 ### API Security
-- API key validation for AI services
-- Request signing for sensitive operations
-- CORS configuration
+- CORS configuration (restrict to localhost/your domain)
+- Rate limiting to prevent abuse
 - Input validation (Zod schemas)
+- Environment variable protection
 
 ### Data Privacy
-- Encrypt API keys in database
 - Secure file storage with signed URLs
-- GDPR compliance (data export/delete)
+- API keys stored in environment variables (never in database)
+- Automatic cleanup of old videos/files (optional)
 
 ---
 
@@ -800,7 +873,7 @@ pnpm dev
 - Service worker for offline support
 
 ### Backend
-- Connection pooling (Prisma)
+- Connection pooling (PostgreSQL with Drizzle)
 - Redis caching for frequent queries
 - Background jobs for video processing
 - Webhook callbacks instead of polling
@@ -873,16 +946,15 @@ pnpm dev
 ## Timeline
 
 ### Week 1-2: Foundation
-- Project setup
-- Database schema
-- Authentication
-- Basic UI components
+- Project setup (monorepo with Turbo)
+- Database schema with Drizzle ORM
+- Basic UI components with shadcn/ui
 
 ### Week 3-4: Core Features
-- Script generation
-- TTS integration
-- Video player
-- Basic video generation
+- Script generation with OpenAI
+- TTS integration with Google Cloud
+- Video player component
+- Basic video generation with Veo 3
 
 ### Week 5-6: Image Integration
 - Image recommendations
@@ -907,12 +979,12 @@ pnpm dev
 
 1. **Review this plan** and provide feedback
 2. **Set up development environment** (install dependencies)
-3. **Create database schema** (Prisma migrations)
-4. **Implement authentication** (user registration/login)
+3. **Create database schema** (Drizzle ORM migrations)
+4. **Build UI components** (shadcn/ui setup)
 5. **Build first user flow** (topic input → script generation)
 6. **Integrate AI services** (OpenAI, Google TTS, Veo 3)
 7. **Test end-to-end workflow**
-8. **Deploy MVP to production**
+8. **Deploy MVP for personal use**
 
 ---
 
@@ -921,11 +993,9 @@ pnpm dev
 1. **Google Veo 3 API Access**: Do you have API credentials? Is there a waitlist?
 2. **Voice Preferences**: Google Cloud TTS vs ElevenLabs? Multiple voices?
 3. **Image Sources**: Unsplash only, or also DALL-E/Stable Diffusion?
-4. **Authentication**: Email/password only, or also OAuth (Google, GitHub)?
-5. **Payment**: Free tier limits? Subscription model?
-6. **Batch Processing**: Max videos per batch? Queue priority?
-7. **Video Quality**: Max resolution? File size limits?
-8. **Deployment**: Self-hosted or cloud? Budget constraints?
+4. **Batch Processing**: Max videos per batch? Queue priority?
+5. **Video Quality**: Max resolution? File size limits?
+6. **Deployment**: Self-hosted or cloud? Budget constraints?
 
 ---
 

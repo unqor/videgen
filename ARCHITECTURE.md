@@ -23,19 +23,19 @@
 │                 Hono.js Backend (Railway/Render)                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
 │  │   Routes     │  │   Services   │  │  Middleware  │         │
-│  │  (API)       │  │  (Business)  │  │  (Auth/etc)  │         │
+│  │  (API)       │  │  (Business)  │  │  (CORS/etc)  │         │
 │  └──────────────┘  └──────────────┘  └──────────────┘         │
 └─────────┬──────────────┬──────────────┬──────────────┬─────────┘
           │              │              │              │
           │              │              │              │
 ┌─────────▼────┐ ┌───────▼──────┐ ┌───▼────────┐ ┌──▼──────────┐
 │  PostgreSQL  │ │   AI APIs    │ │  Storage   │ │ Job Queue   │
-│  (Database)  │ │  (External)  │ │  (GCS/S3)  │ │  (BullMQ)   │
+│  (Drizzle)   │ │  (External)  │ │  (GCS/S3)  │ │  (BullMQ)   │
 │              │ │              │ │            │ │             │
-│  - Users     │ │ - OpenAI     │ │ - Videos   │ │ - Async     │
-│  - Projects  │ │ - Google TTS │ │ - Audio    │ │   Jobs      │
-│  - Videos    │ │ - Veo 3      │ │ - Images   │ │ - Progress  │
-│  - Scripts   │ │ - Unsplash   │ │            │ │   Tracking  │
+│  - Projects  │ │ - OpenAI     │ │ - Videos   │ │ - Async     │
+│  - Videos    │ │ - Google TTS │ │ - Audio    │ │   Jobs      │
+│  - Scripts   │ │ - Veo 3      │ │ - Images   │ │ - Progress  │
+│  - Images    │ │ - Unsplash   │ │            │ │   Tracking  │
 └──────────────┘ └──────────────┘ └────────────┘ └─────────────┘
 ```
 
@@ -95,33 +95,26 @@
 
 ```
 app/
-├── (auth)/
-│   ├── login/
-│   │   └── page.tsx                 # Login page
-│   └── register/
-│       └── page.tsx                 # Registration page
-│
-├── (dashboard)/
-│   ├── layout.tsx                   # Dashboard shell
-│   ├── page.tsx                     # Dashboard home
-│   ├── projects/
-│   │   ├── page.tsx                 # Projects list
-│   │   ├── [id]/
-│   │   │   └── page.tsx             # Project detail
-│   │   └── new/
-│   │       └── page.tsx             # Create project
-│   ├── videos/
-│   │   ├── page.tsx                 # Videos list
-│   │   ├── [id]/
-│   │   │   ├── page.tsx             # Video detail
-│   │   │   ├── edit/
-│   │   │   │   └── page.tsx         # Edit video
-│   │   │   └── preview/
-│   │   │       └── page.tsx         # Preview video
-│   │   └── new/
-│   │       └── page.tsx             # Create video wizard
-│   └── settings/
-│       └── page.tsx                 # User settings
+├── layout.tsx                       # Root layout
+├── page.tsx                         # Home page
+├── projects/
+│   ├── page.tsx                     # Projects list
+│   ├── [id]/
+│   │   └── page.tsx                 # Project detail
+│   └── new/
+│       └── page.tsx                 # Create project
+├── videos/
+│   ├── page.tsx                     # Videos list
+│   ├── [id]/
+│   │   ├── page.tsx                 # Video detail
+│   │   ├── edit/
+│   │   │   └── page.tsx             # Edit video
+│   │   └── preview/
+│   │       └── page.tsx             # Preview video
+│   └── new/
+│       └── page.tsx                 # Create video wizard
+├── settings/
+│   └── page.tsx                     # App settings
 │
 └── components/
     ├── ui/                          # shadcn/ui primitives
@@ -164,8 +157,7 @@ src/
 │   ├── tts.ts                       # Text-to-speech
 │   ├── images.ts                    # Image recommendations
 │   ├── veo3.ts                      # Video generation
-│   ├── batch.ts                     # Batch processing
-│   └── auth.ts                      # Authentication
+│   └── batch.ts                     # Batch processing
 │
 ├── services/
 │   ├── script-generator.service.ts
@@ -203,13 +195,14 @@ src/
 │       └── generateSignedUrl()
 │
 ├── middleware/
-│   ├── auth.ts                      # JWT validation
 │   ├── error-handler.ts             # Error handling
+│   ├── cors.ts                      # CORS configuration
 │   ├── rate-limit.ts                # Rate limiting
-│   └── validate.ts                  # Request validation
+│   └── logger.ts                    # Request logging
 │
 ├── db/
-│   ├── client.ts                    # Prisma client
+│   ├── index.ts                     # Drizzle client
+│   ├── schema.ts                    # Database schema
 │   └── seed.ts                      # Database seeding
 │
 └── utils/
@@ -220,25 +213,17 @@ src/
 
 ## Database Schema
 
+> Using **Drizzle ORM** for type-safe database access
+
 ```
-┌─────────────┐
-│    User     │
-├─────────────┤
-│ id          │───┐
-│ email       │   │
-│ name        │   │
-│ password    │   │
-└─────────────┘   │
-                  │
-                  │ 1:N
-                  │
-         ┌────────▼────────┐
+         ┌─────────────────┐
          │    Project      │
          ├─────────────────┤
          │ id              │───┐
-         │ userId          │   │
          │ title           │   │
          │ description     │   │
+         │ createdAt       │   │
+         │ updatedAt       │   │
          └─────────────────┘   │
                                │ 1:N
                                │
@@ -253,35 +238,29 @@ src/
                       │ status          │   │
                       │ audioUrl        │   │
                       │ videoUrl        │   │
+                      │ thumbnailUrl    │   │
                       │ duration        │   │
+                      │ metadata        │   │
+                      │ createdAt       │   │
+                      │ updatedAt       │   │
                       └─────────────────┘   │
                                             │
                 ┌───────────────────────────┼───────────────────────┐
                 │                           │                       │
                 │ 1:N                       │ 1:N                   │
                 │                           │                       │
-   ┌────────────▼──────────┐   ┌───────────▼──────────┐           │
-   │   ScriptSection       │   │  ImageTimestamp      │           │
-   ├───────────────────────┤   ├──────────────────────┤           │
-   │ id                    │   │ id                   │           │
-   │ videoId               │   │ videoId              │           │
-   │ order                 │   │ imageUrl             │           │
-   │ content               │   │ imagePrompt          │           │
-   │ startTime             │   │ timestamp            │           │
-   │ endTime               │   │ duration             │           │
-   └───────────────────────┘   │ order                │           │
-                               └──────────────────────┘           │
-                                                                  │
-                                                                  │
-┌─────────────┐                                                  │
-│   ApiKey    │                                                  │
-├─────────────┤                                                  │
-│ id          │                                                  │
-│ userId      │──────────────────────────────────────────────────┘
-│ service     │
-│ key         │
-│ isActive    │
-└─────────────┘
+   ┌────────────▼──────────┐   ┌───────────▼──────────┐
+   │   ScriptSection       │   │  ImageTimestamp      │
+   ├───────────────────────┤   ├──────────────────────┤
+   │ id                    │   │ id                   │
+   │ videoId               │   │ videoId              │
+   │ order                 │   │ imageUrl             │
+   │ content               │   │ imagePrompt          │
+   │ startTime             │   │ timestamp            │
+   │ endTime               │   │ duration             │
+   │ createdAt             │   │ order                │
+   └───────────────────────┘   │ createdAt            │
+                               └──────────────────────┘
 ```
 
 ## API Request/Response Patterns
@@ -362,71 +341,41 @@ Response: {
 
 ## Security Architecture
 
-### Authentication Flow
+> **Note**: This is a personal-use application with no authentication system. API keys are managed via environment variables.
 
-```
-1. User Registration
-   ↓
-   POST /api/auth/register
-   ↓
-   Password Hashing (bcrypt)
-   ↓
-   Store in Database
-   ↓
-   Send Welcome Email
-
-2. User Login
-   ↓
-   POST /api/auth/login
-   ↓
-   Verify Password
-   ↓
-   Generate JWT (Access + Refresh)
-   ↓
-   Set httpOnly Cookies
-   ↓
-   Return User Data
-
-3. Authenticated Request
-   ↓
-   Extract JWT from Cookie
-   ↓
-   Verify Signature
-   ↓
-   Check Expiration
-   ↓
-   Attach User to Request
-   ↓
-   Process Request
-
-4. Token Refresh
-   ↓
-   POST /api/auth/refresh
-   ↓
-   Verify Refresh Token
-   ↓
-   Generate New Access Token
-   ↓
-   Update Cookie
-```
-
-### API Key Management
+### API Security
 
 ```typescript
-// Encryption at Rest
-const encryptApiKey = (key: string): string => {
-  return crypto.encrypt(key, process.env.ENCRYPTION_KEY);
-};
+// CORS Configuration
+app.use('*', cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  credentials: true,
+}));
 
-// Decryption for Use
-const decryptApiKey = (encrypted: string): string => {
-  return crypto.decrypt(encrypted, process.env.ENCRYPTION_KEY);
-};
+// Rate Limiting
+app.use('*', rateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+}));
 
-// Usage in Service
-const apiKey = decryptApiKey(user.apiKeys.find(k => k.service === 'openai').key);
+// Input Validation
+app.post('/api/videos', zValidator('json', createVideoSchema), async (c) => {
+  const data = c.req.valid('json');
+  // Process validated data
+});
+```
+
+### Environment Variable Management
+
+```typescript
+// API keys stored securely in environment
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const GOOGLE_CLOUD_API_KEY = process.env.GOOGLE_CLOUD_API_KEY;
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+
+// Usage in services
 const response = await openai.chat.completions.create({
-  headers: { 'Authorization': `Bearer ${apiKey}` }
+  headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` }
 });
 ```
 

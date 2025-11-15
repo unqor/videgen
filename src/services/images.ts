@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
+import mime from "mime";
 
 const genAI = new GoogleGenAI({
 	apiKey: process.env.GOOGLE_GEMINI_API_KEY || "",
@@ -16,16 +17,6 @@ async function ensureDir(dir: string) {
 	}
 }
 
-// Download image from URL
-async function downloadImage(url: string, filepath: string): Promise<void> {
-	const response = await fetch(url);
-	if (!response.ok) {
-		throw new Error(`Failed to download image: ${response.statusText}`);
-	}
-	const buffer = await response.arrayBuffer();
-	await writeFile(filepath, Buffer.from(buffer));
-}
-
 interface ImageRecommendation {
 	imageUrl: string;
 	imagePrompt: string;
@@ -35,19 +26,13 @@ interface ImageRecommendation {
 }
 
 /**
- * Recommend images for the video based on script content
+ * Generate images for the video based on script content using Gemini
  */
 export async function recommendImages(
 	script: string,
 	duration: number,
 	projectId: string,
 ): Promise<ImageRecommendation[]> {
-	const unsplashAccessKey = process.env.UNSPLASH_ACCESS_KEY;
-
-	if (!unsplashAccessKey) {
-		throw new Error("UNSPLASH_ACCESS_KEY not configured");
-	}
-
 	try {
 		// Create project directory
 		const projectDir = join(TEMP_DIR, projectId);
@@ -58,13 +43,13 @@ export async function recommendImages(
 
 Script: "${script}"
 
-You are an expert at analyzing scripts and identifying visual concepts. Return ONLY a JSON array of image search queries (4-8 items), like:
-["rice field with seedlings", "farmer planting rice", "mature rice plants", "rice harvest"]
+You are an expert at analyzing scripts and identifying visual concepts. Return ONLY a JSON array of image descriptions (4-8 items), like:
+["a lush green rice field with young seedlings in rows", "a farmer carefully planting rice in a flooded paddy field", "mature golden rice plants ready for harvest", "farmers harvesting rice with traditional tools"]
 
 Return only the JSON array, no additional text or explanation.`;
 
 		const conceptsResponse = await genAI.models.generateContent({
-			model: "gemini-2.0-flash-exp",
+			model: "gemini-2.5-flash",
 			contents: conceptsPrompt,
 		});
 
@@ -73,92 +58,141 @@ Return only the JSON array, no additional text or explanation.`;
 			throw new Error("No concepts generated");
 		}
 
-		// Parse the JSON array of search queries
-		let searchQueries: string[];
+		// Parse the JSON array of image descriptions
+		let imagePrompts: string[];
 		try {
-			searchQueries = JSON.parse(conceptsText);
+			imagePrompts = JSON.parse(conceptsText);
 		} catch {
-			// If parsing fails, create default queries
-			searchQueries = ["education", "learning", "knowledge", "study"];
+			// If parsing fails, create default prompts
+			imagePrompts = [
+				"educational classroom with students learning",
+				"books and learning materials on a desk",
+				"teacher explaining concepts on a whiteboard",
+				"students studying together in a library",
+			];
 		}
 
 		// Ensure we have 4-8 images
-		if (searchQueries.length < 4) {
-			searchQueries = [
-				...searchQueries,
-				"education",
-				"learning",
-				"knowledge",
+		if (imagePrompts.length < 4) {
+			imagePrompts = [
+				...imagePrompts,
+				"educational scene with books",
+				"learning environment",
+				"students in classroom",
 			];
 		}
-		if (searchQueries.length > 8) {
-			searchQueries = searchQueries.slice(0, 8);
+		if (imagePrompts.length > 8) {
+			imagePrompts = imagePrompts.slice(0, 8);
 		}
 
-		// Step 2: Fetch and download images from Unsplash
+		// Step 2: Generate images using Gemini
 		const images: ImageRecommendation[] = [];
-		const segmentDuration = duration / searchQueries.length;
+		const segmentDuration = duration / imagePrompts.length;
 
-		for (let i = 0; i < searchQueries.length; i++) {
-			const query = searchQueries[i];
+		for (let i = 0; i < imagePrompts.length; i++) {
+			const prompt = imagePrompts[i];
 
 			try {
-				const response = await fetch(
-					`https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&orientation=landscape`,
-					{
-						headers: {
-							Authorization: `Client-ID ${unsplashAccessKey}`,
-						},
+				console.log(`Generating image ${i + 1}: ${prompt}`);
+
+				// Configure image generation
+				const config = {
+					responseModalities: ["IMAGE", "TEXT"],
+					imageConfig: {
+						imageSize: "1K",
 					},
-				);
+				};
 
-				if (response.ok) {
-					const data: { urls: { regular: string } } =
-						await response.json();
-					const imageUrl = data?.urls?.regular;
+				const model = "gemini-2.5-flash-image";
+				const contents = [
+					{
+						role: "user",
+						parts: [
+							{
+								text: `Generate a high-quality, professional image: ${prompt}. Make it suitable for an educational video background.`,
+							},
+						],
+					},
+				];
 
-					// Download image and save locally
-					const filename = `image-${i + 1}.jpg`;
-					const filepath = join(projectDir, filename);
-					await downloadImage(imageUrl, filepath);
+				const response = await genAI.models.generateContentStream({
+					model,
+					config,
+					contents,
+				});
 
-					// Return local URL
-					const localUrl = `/temp/${projectId}/${filename}`;
-					images.push({
-						imageUrl: localUrl,
-						imagePrompt: query,
-						timestamp: i * segmentDuration,
-						duration: segmentDuration,
-						order: i + 1,
-					});
+				let imageSaved = false;
 
-					console.log(`Image ${i + 1} saved: ${localUrl}`);
-				} else {
-					throw new Error("Failed to fetch from Unsplash");
+				for await (const chunk of response) {
+					if (
+						!chunk.candidates ||
+						!chunk.candidates[0].content ||
+						!chunk.candidates[0].content.parts
+					) {
+						continue;
+					}
+
+					if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+						const inlineData =
+							chunk.candidates[0].content.parts[0].inlineData;
+						const fileExtension =
+							mime.getExtension(inlineData.mimeType || "") || "png";
+						const buffer = Buffer.from(
+							inlineData.data || "",
+							"base64",
+						);
+
+						// Save image file
+						const filename = `image-${i + 1}.${fileExtension}`;
+						const filepath = join(projectDir, filename);
+						await writeFile(filepath, buffer);
+
+						// Add to results
+						const localUrl = `/temp/${projectId}/${filename}`;
+						images.push({
+							imageUrl: localUrl,
+							imagePrompt: prompt,
+							timestamp: i * segmentDuration,
+							duration: segmentDuration,
+							order: i + 1,
+						});
+
+						imageSaved = true;
+						console.log(`Image ${i + 1} saved: ${localUrl}`);
+					} else if (chunk.text) {
+						console.log(`Gemini response: ${chunk.text}`);
+					}
+				}
+
+				if (!imageSaved) {
+					throw new Error("No image data received from Gemini");
 				}
 			} catch (error) {
-				console.error(`Error fetching image for "${query}":`, error);
-				// Create a placeholder
+				console.error(`Error generating image for "${prompt}":`, error);
+
+				// Create a placeholder on error
 				const filename = `image-${i + 1}-placeholder.txt`;
 				const filepath = join(projectDir, filename);
-				await writeFile(filepath, query);
+				await writeFile(filepath, `Failed to generate: ${prompt}`);
 
 				images.push({
-					imageUrl: `https://via.placeholder.com/1920x1080/4F46E5/FFFFFF?text=${encodeURIComponent(query)}`,
-					imagePrompt: query,
+					imageUrl: `https://via.placeholder.com/1920x1080/4F46E5/FFFFFF?text=${encodeURIComponent(prompt.substring(0, 30))}`,
+					imagePrompt: prompt,
 					timestamp: i * segmentDuration,
 					duration: segmentDuration,
 					order: i + 1,
 				});
 			}
 
-			// Rate limiting: Wait 100ms between requests
-			await new Promise((resolve) => setTimeout(resolve, 100));
+			// Rate limiting: Wait 1 second between requests to avoid API limits
+			if (i < imagePrompts.length - 1) {
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+			}
 		}
 
 		return images;
 	} catch (error) {
-		console.error("Image recommendation error:", error);
-		throw new Error("Failed to recommend images");
+		console.error("Image generation error:", error);
+		throw new Error("Failed to generate images");
 	}
 }

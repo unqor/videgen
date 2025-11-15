@@ -4,7 +4,8 @@
 
 - **Bun** (recommended) or **Node.js 20+**
 - API Keys for:
-  - OpenAI (GPT-4)
+  - Google Gemini (Script Generation)
+  - OpenAI (Image Concept Extraction)
   - Google Cloud (Text-to-Speech)
   - Google Veo 3 (Video Generation)
   - Unsplash (Images)
@@ -47,6 +48,7 @@ PORT=3000
 NODE_ENV=development
 
 # AI Service API Keys
+GOOGLE_GEMINI_API_KEY=your-google-gemini-api-key-here
 OPENAI_API_KEY=sk-your-openai-api-key-here
 GOOGLE_CLOUD_API_KEY=your-google-cloud-api-key-here
 GOOGLE_VEO3_API_KEY=your-google-veo3-api-key-here
@@ -58,10 +60,17 @@ TEMP_DIR=./src/temp
 
 ### 4. Get API Keys
 
+#### Google Gemini API Key
+1. Go to https://aistudio.google.com/app/apikey
+2. Create a new API key
+3. Copy the key
+
 #### OpenAI API Key
 1. Go to https://platform.openai.com/api-keys
 2. Create a new API key
 3. Copy the key (starts with `sk-`)
+
+**Note**: OpenAI is only used for analyzing scripts to extract visual concepts for image recommendations. Gemini is used for script generation.
 
 #### Google Cloud Text-to-Speech
 1. Go to https://console.cloud.google.com/
@@ -235,12 +244,13 @@ curl http://localhost:3000/health
 ## Cost Estimation
 
 Per video (approximate):
-- OpenAI GPT-4: $0.03
+- Google Gemini Flash: ~$0.001 (script generation)
+- OpenAI GPT-4: ~$0.01 (image concept extraction)
 - Google Cloud TTS: $0.02
 - Google Veo 3: $0.10-0.50
 - Unsplash: Free (50 requests/hour)
 
-**Total per video**: ~$0.15-0.55
+**Total per video**: ~$0.13-0.53 (cheaper with Gemini!)
 
 ## Next Steps
 

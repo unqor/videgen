@@ -75,7 +75,7 @@ Tulis HANYA narasi skrip, tanpa format atau petunjuk panggung tambahan.`,
 		// Use the selected Gemini model
 		const result = await genAI.models.generateContent({
 			model,
-			contents: [{ role: "user", parts: [{ text: prompt }] }],
+			contents: prompt,
 		});
 
 		const script = result.text?.trim();

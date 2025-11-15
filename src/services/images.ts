@@ -38,7 +38,7 @@ Return only the JSON array, no additional text or explanation.`;
 
 		const conceptsResponse = await genAI.models.generateContent({
 			model: "gemini-2.0-flash-exp",
-			contents: [{ role: "user", parts: [{ text: conceptsPrompt }] }],
+			contents: conceptsPrompt,
 		});
 
 		const conceptsText = conceptsResponse.text?.trim();

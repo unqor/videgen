@@ -47,13 +47,17 @@ app.post('/api/generate-audio', async (c) => {
       return c.json({ error: 'Script is required' }, 400);
     }
 
-    const audioUrl = await generateAudio(script, voice || 'en-US-Neural2-J');
+    const result = await generateAudio(script, voice || 'en-US-Neural2-J');
 
     // Calculate duration based on word count (average speaking rate: 150 words per minute)
     const wordCount = script.trim().split(/\s+/).length;
     const duration = Math.ceil((wordCount / 150) * 60); // Duration in seconds
 
-    return c.json({ audioUrl, duration });
+    return c.json({
+      audioUrl: result.audioUrl,
+      projectId: result.projectId,
+      duration
+    });
   } catch (error) {
     console.error('Error generating audio:', error);
     return c.json({ error: 'Failed to generate audio' }, 500);
@@ -63,13 +67,17 @@ app.post('/api/generate-audio', async (c) => {
 // Get image recommendations
 app.post('/api/recommend-images', async (c) => {
   try {
-    const { script, duration } = await c.req.json();
+    const { script, duration, projectId } = await c.req.json();
 
     if (!script || script.trim().length === 0) {
       return c.json({ error: 'Script is required' }, 400);
     }
 
-    const images = await recommendImages(script, duration || 60);
+    if (!projectId) {
+      return c.json({ error: 'Project ID is required' }, 400);
+    }
+
+    const images = await recommendImages(script, duration || 60, projectId);
     return c.json({ images });
   } catch (error) {
     console.error('Error recommending images:', error);

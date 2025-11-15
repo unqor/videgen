@@ -4,10 +4,9 @@
 
 - **Bun** (recommended) or **Node.js 20+**
 - API Keys for:
-  - Google Gemini (Script Generation & Image Concept Extraction)
+  - Google Gemini (Script Generation, Image Generation & Image Concept Extraction)
   - Google Cloud (Text-to-Speech)
   - Google Veo 3 (Video Generation)
-  - Unsplash (Images)
 
 ## Installation Steps
 
@@ -50,7 +49,6 @@ NODE_ENV=development
 GOOGLE_GEMINI_API_KEY=your-google-gemini-api-key-here
 GOOGLE_CLOUD_API_KEY=your-google-cloud-api-key-here
 GOOGLE_VEO3_API_KEY=your-google-veo3-api-key-here
-UNSPLASH_ACCESS_KEY=your-unsplash-access-key-here
 
 # Optional: Temporary file storage path
 TEMP_DIR=./src/temp
@@ -63,7 +61,7 @@ TEMP_DIR=./src/temp
 2. Create a new API key
 3. Copy the key
 
-**Note**: Gemini is used for both script generation and analyzing scripts to extract visual concepts for image recommendations.
+**Note**: Gemini is used for script generation, image generation (gemini-2.5-flash-image), and analyzing scripts to extract visual concepts.
 
 #### Google Cloud Text-to-Speech
 1. Go to https://console.cloud.google.com/
@@ -78,11 +76,6 @@ TEMP_DIR=./src/temp
 4. Copy the API key
 
 **Note**: Google Veo 3 might not be publicly available yet. The current implementation uses a mock video generator. Check `src/services/video.ts` for integration instructions.
-
-#### Unsplash Access Key
-1. Go to https://unsplash.com/developers
-2. Create a new application
-3. Copy the Access Key
 
 ### 5. Run the Development Server
 
@@ -117,7 +110,7 @@ videgen/
 │   ├── services/
 │   │   ├── script.ts         # Gemini script generation
 │   │   ├── tts.ts            # Google Cloud TTS
-│   │   ├── images.ts         # Gemini image concept extraction + Unsplash
+│   │   ├── images.ts         # Gemini image generation and concept extraction
 │   │   └── video.ts          # Google Veo 3 (mock)
 │   ├── public/
 │   │   ├── index.html        # Frontend UI
@@ -238,11 +231,11 @@ curl http://localhost:3000/health
 
 Per video (approximate):
 - Google Gemini Flash: ~$0.002 (script generation + image concept extraction)
+- Google Gemini Image: ~$0.08-0.16 (4-8 images at $0.02 per image)
 - Google Cloud TTS: $0.02
 - Google Veo 3: $0.10-0.50
-- Unsplash: Free (50 requests/hour)
 
-**Total per video**: ~$0.12-0.52 (very affordable!)
+**Total per video**: ~$0.20-0.68 (still very affordable!)
 
 ## Next Steps
 

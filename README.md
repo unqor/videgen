@@ -1,150 +1,82 @@
 # Videgen
 
-> AI-powered faceless education explainer video generator
+> Simple AI-powered video generator - One page, no database, pure simplicity
 
-**Videgen** transforms educational topics into professional explainer videos using AI. Simply enter a topic, and Videgen generates a script, narration, visuals, and a complete video—all automatically.
+**Videgen** is a lightweight single-page web app that transforms educational topics into professional explainer videos using AI.
 
 ## ✨ Features
 
-- 🎬 **Automated Video Generation** - From topic to video in minutes
+- 🎬 **One-Click Video Generation** - From topic to video in minutes
 - 🎙️ **AI Narration** - Natural-sounding text-to-speech voices
-- 🖼️ **Smart Visuals** - AI-recommended images with perfect timing
-- ✏️ **Script Editor** - Full control over your content
-- 📦 **Batch Processing** - Generate multiple videos at once
-- 🎨 **Modern UI** - Beautiful, intuitive interface with shadcn/ui
+- ✏️ **Editable Scripts** - Full control over your content
+- 🖼️ **Smart Visuals** - AI-recommended images from Unsplash
+- 📦 **Zero Setup** - No database, no complex configuration
+- 🚀 **Fast & Lightweight** - Built with Hono.js and vanilla JS
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **Next.js 15** - React framework with App Router
-- **TypeScript** - Type-safe development
-- **Tailwind CSS v4** - Modern utility-first styling
-- **shadcn/ui** - Beautiful, accessible components
-
-### Backend
-- **Hono.js** - Fast, lightweight web framework
-- **PostgreSQL** - Reliable relational database
-- **Drizzle ORM** - Type-safe database toolkit
-
-### AI Services
-- **Google Veo 3** - Advanced video generation
-- **Google Cloud TTS** - Natural text-to-speech
-- **OpenAI GPT-4** - Script generation
-- **Unsplash API** - High-quality stock images
+- **Backend**: Hono.js (TypeScript)
+- **Frontend**: HTML/CSS/JavaScript + Tailwind CSS (CDN)
+- **Runtime**: Bun or Node.js
+- **AI Services**: OpenAI GPT-4, Google Cloud TTS, Google Veo 3, Unsplash
+- **Storage**: Temporary files only (no database)
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Node.js 20+ or Bun
-- PostgreSQL 15+
-- pnpm (recommended) or npm
-
-### Installation
-
 ```bash
-# Clone the repository
+# 1. Install Bun
+curl -fsSL https://bun.sh/install | bash
+
+# 2. Clone and install
 git clone https://github.com/yourusername/videgen.git
 cd videgen
+bun install
 
-# Install dependencies
-pnpm install
+# 3. Set up environment
+cp .env.example .env
+# Edit .env with your API keys
 
-# Set up environment variables
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.local.example apps/web/.env.local
-
-# Configure your API keys in .env files
-
-# Run database migrations
-cd apps/api
-pnpm drizzle-kit generate
-pnpm drizzle-kit migrate
-
-# Start development servers
-cd ../..
-pnpm dev
+# 4. Run
+bun run dev
 ```
 
-The app will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
+Visit http://localhost:3000
 
-## 📖 User Flow
-
-1. **Enter Topic** - Type your educational question or topic
-2. **Review Script** - AI generates a script that you can edit
-3. **Generate Narration** - Choose a voice and create audio
-4. **Select Visuals** - Review AI-recommended images and timing
-5. **Create Video** - Generate your final explainer video
-6. **Download & Share** - Export and distribute your video
-
-## 🏗️ Project Structure
+## 📁 Project Structure
 
 ```
 videgen/
-├── apps/
-│   ├── web/          # Next.js frontend
-│   └── api/          # Hono.js backend
-├── packages/
-│   └── shared/       # Shared types and utilities
-├── docs/             # Documentation
-└── PLANNING.md       # Detailed project plan
+├── src/
+│   ├── index.ts          # Main Hono app
+│   ├── services/         # AI service integrations
+│   ├── public/           # Static HTML/CSS/JS
+│   └── temp/             # Temporary video files
+├── .env                  # API keys
+└── package.json
 ```
 
-## 📚 Documentation
+## 🎯 How It Works
 
-- [Project Planning](./PLANNING.md) - Complete technical plan
-- [API Documentation](./docs/API.md) - API endpoints and usage
-- [Deployment Guide](./docs/DEPLOYMENT.md) - How to deploy
-- [User Guide](./docs/USER_GUIDE.md) - End-user documentation
+1. **Enter Topic** → Type your educational question
+2. **Generate Script** → AI creates a narration script
+3. **Edit Script** → Review and customize the text
+4. **Generate Video** → AI creates audio, finds images, assembles video
+5. **Download** → Get your MP4 file
 
-## 🎯 Roadmap
+## 💰 Cost
 
-### Phase 1: MVP (Current)
-- [x] Project planning and architecture
-- [ ] Core video generation workflow
-- [ ] Script generation and editing
-- [ ] TTS integration
-- [ ] Basic video output
-
-### Phase 2: Enhanced Features
-- [ ] Image recommendations and timeline editor
-- [ ] Multiple voice options
-- [ ] Video templates
-- [ ] Batch processing
-
-### Phase 3: Advanced
-- [ ] Custom branding
-- [ ] Background music
-- [ ] Collaboration features
-- [ ] Analytics dashboard
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+**Per Video**: ~$0.15-0.55
+**Monthly (100 videos)**: ~$15-75
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+MIT License
 
 ## 🙋 Support
 
-- [Documentation](./docs/)
-- [Issue Tracker](https://github.com/yourusername/videgen/issues)
-- [Discussions](https://github.com/yourusername/videgen/discussions)
-
-## 🌟 Example
-
-**Input:**
-> "How long does it take to plant rice until ready for harvest?"
-
-**Output:**
-A 60-second explainer video with:
-- Professional AI narration
-- Relevant rice farming imagery
-- Smooth transitions and timing
-- Ready to upload and share
+- [Documentation](./PLANNING.md)
+- [Issues](https://github.com/yourusername/videgen/issues)
 
 ---
 
-Built with ❤️ using Next.js, Hono.js, and Google Veo 3
+Built with ❤️ using Hono.js and AI

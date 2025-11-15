@@ -51,6 +51,12 @@ Return only the JSON array, no additional text or explanation.`;
 		const conceptsResponse = await genAI.models.generateContent({
 			model: "gemini-2.5-flash",
 			contents: conceptsPrompt,
+			config: {
+				responseMimeType: "application/json",
+				responseJsonSchema: {
+					type: "array",
+				},
+			},
 		});
 
 		const conceptsText = conceptsResponse.text?.trim();
@@ -70,6 +76,10 @@ Return only the JSON array, no additional text or explanation.`;
 				"teacher explaining concepts on a whiteboard",
 				"students studying together in a library",
 			];
+
+			console.log(
+				`Failed to parse image prompts from response: ${conceptsText}`,
+			);
 		}
 
 		// Ensure we have 4-8 images
@@ -84,6 +94,8 @@ Return only the JSON array, no additional text or explanation.`;
 		if (imagePrompts.length > 8) {
 			imagePrompts = imagePrompts.slice(0, 8);
 		}
+
+		console.log(imagePrompts);
 
 		// Step 2: Generate images using Gemini
 		const images: ImageRecommendation[] = [];
@@ -132,11 +144,14 @@ Return only the JSON array, no additional text or explanation.`;
 						continue;
 					}
 
-					if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+					if (
+						chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData
+					) {
 						const inlineData =
 							chunk.candidates[0].content.parts[0].inlineData;
 						const fileExtension =
-							mime.getExtension(inlineData.mimeType || "") || "png";
+							mime.getExtension(inlineData.mimeType || "") ||
+							"png";
 						const buffer = Buffer.from(
 							inlineData.data || "",
 							"base64",

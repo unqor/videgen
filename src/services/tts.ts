@@ -1,67 +1,157 @@
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
+import { writeFile } from "fs";
+import { join } from "path";
+import { GoogleGenAI } from "@google/genai";
+import mime from "mime";
+
+function saveBinaryFile(fileName: string, content: Buffer) {
+	writeFile(fileName, content, "utf8", (err) => {
+		if (err) {
+			console.error(`Error writing file ${fileName}:`, err);
+			return;
+		}
+		console.log(`File ${fileName} saved to file system.`);
+	});
+}
 
 /**
  * Generate audio from script using Google Cloud Text-to-Speech
  * For now, this is a mock implementation. You'll need to integrate the actual Google Cloud TTS API.
  */
-export async function generateAudio(script: string, voice: string): Promise<string> {
-  const apiKey = process.env.GOOGLE_CLOUD_API_KEY;
+export async function generateAudio(script: string, voice: string) {
+	const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
 
-  if (!apiKey) {
-    throw new Error('GOOGLE_CLOUD_API_KEY not configured');
-  }
+	if (!apiKey) {
+		throw new Error("GEMINI_API_KEY not configured");
+	}
 
-  try {
-    // Call Google Cloud Text-to-Speech API
-    const response = await fetch(
-      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          input: { text: script },
-          voice: {
-            languageCode: 'en-US',
-            name: voice,
-          },
-          audioConfig: {
-            audioEncoding: 'MP3',
-            pitch: 0,
-            speakingRate: 1.0,
-          },
-        }),
-      }
-    );
+	try {
+		const ai = new GoogleGenAI({
+			apiKey: apiKey,
+		});
+		const config = {
+			temperature: 1,
+			responseModalities: ["audio"],
+			speechConfig: {
+				voiceConfig: {
+					prebuiltVoiceConfig: {
+						voiceName: "Rasalgethi",
+					},
+				},
+			},
+		};
+		const model = "gemini-2.5-flash-preview-tts";
+		const contents = [
+			{
+				role: "user",
+				parts: [
+					{
+						text: script,
+					},
+				],
+			},
+		];
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('Google TTS API error:', error);
-      throw new Error('Failed to generate audio');
-    }
+		const response = await ai.models.generateContentStream({
+			model,
+			config,
+			contents,
+		});
+		let fileIndex = 0;
+		for await (const chunk of response) {
+			if (
+				!chunk.candidates ||
+				!chunk.candidates[0].content ||
+				!chunk.candidates[0].content.parts
+			) {
+				continue;
+			}
+			if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+				const fileName = `ENTER_FILE_NAME_${fileIndex++}`;
+				const inlineData =
+					chunk.candidates[0].content.parts[0].inlineData;
+				let fileExtension = mime.getExtension(
+					inlineData.mimeType || "",
+				);
+				let buffer = Buffer.from(inlineData.data || "", "base64");
+				if (!fileExtension) {
+					fileExtension = "wav";
+					buffer = convertToWav(
+						inlineData.data || "",
+						inlineData.mimeType || "",
+					);
+				}
+				saveBinaryFile(`${fileName}.${fileExtension}`, buffer);
+			} else {
+				console.log(chunk.text);
+			}
+		}
+	} catch (error) {
+		console.error("TTS generation error:", error);
+		throw new Error("Failed to generate audio with Google Cloud TTS");
+	}
+}
 
-    const data = await response.json();
-    const audioContent = data.audioContent;
+interface WavConversionOptions {
+	numChannels: number;
+	sampleRate: number;
+	bitsPerSample: number;
+}
 
-    if (!audioContent) {
-      throw new Error('No audio content received from Google TTS');
-    }
+function convertToWav(rawData: string, mimeType: string) {
+	const options = parseMimeType(mimeType);
+	const wavHeader = createWavHeader(rawData.length, options);
+	const buffer = Buffer.from(rawData, "base64");
 
-    // Save audio file to temp directory
-    const tempDir = process.env.TEMP_DIR || './src/temp';
-    const filename = `audio-${Date.now()}.mp3`;
-    const filepath = join(tempDir, filename);
+	return Buffer.concat([wavHeader, buffer]);
+}
 
-    // Decode base64 and write to file
-    const audioBuffer = Buffer.from(audioContent, 'base64');
-    await writeFile(filepath, audioBuffer);
+function parseMimeType(mimeType: string) {
+	const [fileType, ...params] = mimeType.split(";").map((s) => s.trim());
+	const [_, format] = fileType.split("/");
 
-    // Return URL path
-    return `/temp/${filename}`;
-  } catch (error) {
-    console.error('TTS generation error:', error);
-    throw new Error('Failed to generate audio with Google Cloud TTS');
-  }
+	const options: Partial<WavConversionOptions> = {
+		numChannels: 1,
+	};
+
+	if (format && format.startsWith("L")) {
+		const bits = parseInt(format.slice(1), 10);
+		if (!isNaN(bits)) {
+			options.bitsPerSample = bits;
+		}
+	}
+
+	for (const param of params) {
+		const [key, value] = param.split("=").map((s) => s.trim());
+		if (key === "rate") {
+			options.sampleRate = parseInt(value, 10);
+		}
+	}
+
+	return options as WavConversionOptions;
+}
+
+function createWavHeader(dataLength: number, options: WavConversionOptions) {
+	const { numChannels, sampleRate, bitsPerSample } = options;
+
+	// http://soundfile.sapp.org/doc/WaveFormat
+
+	const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+	const blockAlign = (numChannels * bitsPerSample) / 8;
+	const buffer = Buffer.alloc(44);
+
+	buffer.write("RIFF", 0); // ChunkID
+	buffer.writeUInt32LE(36 + dataLength, 4); // ChunkSize
+	buffer.write("WAVE", 8); // Format
+	buffer.write("fmt ", 12); // Subchunk1ID
+	buffer.writeUInt32LE(16, 16); // Subchunk1Size (PCM)
+	buffer.writeUInt16LE(1, 20); // AudioFormat (1 = PCM)
+	buffer.writeUInt16LE(numChannels, 22); // NumChannels
+	buffer.writeUInt32LE(sampleRate, 24); // SampleRate
+	buffer.writeUInt32LE(byteRate, 28); // ByteRate
+	buffer.writeUInt16LE(blockAlign, 32); // BlockAlign
+	buffer.writeUInt16LE(bitsPerSample, 34); // BitsPerSample
+	buffer.write("data", 36); // Subchunk2ID
+	buffer.writeUInt32LE(dataLength, 40); // Subchunk2Size
+
+	return buffer;
 }

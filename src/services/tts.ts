@@ -1,23 +1,25 @@
-import { writeFile } from "fs";
+import { writeFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
 import { join } from "path";
 import { GoogleGenAI } from "@google/genai";
 import mime from "mime";
 
-function saveBinaryFile(fileName: string, content: Buffer) {
-	writeFile(fileName, content, "utf8", (err) => {
-		if (err) {
-			console.error(`Error writing file ${fileName}:`, err);
-			return;
-		}
-		console.log(`File ${fileName} saved to file system.`);
-	});
+const TEMP_DIR = join(process.cwd(), "src", "temp");
+
+// Ensure temp directory exists
+async function ensureTempDir() {
+	if (!existsSync(TEMP_DIR)) {
+		await mkdir(TEMP_DIR, { recursive: true });
+	}
 }
 
 /**
- * Generate audio from script using Google Cloud Text-to-Speech
- * For now, this is a mock implementation. You'll need to integrate the actual Google Cloud TTS API.
+ * Generate audio from script using Google Gemini TTS
  */
-export async function generateAudio(script: string, voice: string) {
+export async function generateAudio(
+	script: string,
+	voice: string,
+): Promise<string> {
 	const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
 
 	if (!apiKey) {
@@ -25,6 +27,8 @@ export async function generateAudio(script: string, voice: string) {
 	}
 
 	try {
+		await ensureTempDir();
+
 		const ai = new GoogleGenAI({
 			apiKey: apiKey,
 		});
@@ -56,7 +60,12 @@ export async function generateAudio(script: string, voice: string) {
 			config,
 			contents,
 		});
-		let fileIndex = 0;
+
+		// Generate unique filename
+		const timestamp = Date.now();
+		const filename = `audio-${timestamp}`;
+		let savedFilePath = "";
+
 		for await (const chunk of response) {
 			if (
 				!chunk.candidates ||
@@ -66,13 +75,13 @@ export async function generateAudio(script: string, voice: string) {
 				continue;
 			}
 			if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
-				const fileName = `ENTER_FILE_NAME_${fileIndex++}`;
 				const inlineData =
 					chunk.candidates[0].content.parts[0].inlineData;
 				let fileExtension = mime.getExtension(
 					inlineData.mimeType || "",
 				);
 				let buffer = Buffer.from(inlineData.data || "", "base64");
+
 				if (!fileExtension) {
 					fileExtension = "wav";
 					buffer = convertToWav(
@@ -80,14 +89,25 @@ export async function generateAudio(script: string, voice: string) {
 						inlineData.mimeType || "",
 					);
 				}
-				saveBinaryFile(`${fileName}.${fileExtension}`, buffer);
-			} else {
+
+				savedFilePath = join(TEMP_DIR, `${filename}.${fileExtension}`);
+				await writeFile(savedFilePath, buffer);
+				console.log(`Audio file saved: ${savedFilePath}`);
+			} else if (chunk.text) {
 				console.log(chunk.text);
 			}
 		}
+
+		if (!savedFilePath) {
+			throw new Error("No audio data received from Gemini TTS");
+		}
+
+		// Return the URL path (relative to the server root)
+		const urlPath = `/temp/${savedFilePath.split("temp/")[1]}`;
+		return urlPath;
 	} catch (error) {
 		console.error("TTS generation error:", error);
-		throw new Error("Failed to generate audio with Google Cloud TTS");
+		throw new Error("Failed to generate audio with Google Gemini TTS");
 	}
 }
 

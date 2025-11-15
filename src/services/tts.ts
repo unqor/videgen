@@ -13,13 +13,18 @@ async function ensureTempDir() {
 	}
 }
 
+interface AudioResult {
+	audioUrl: string;
+	projectId: string;
+}
+
 /**
  * Generate audio from script using Google Gemini TTS
  */
 export async function generateAudio(
 	script: string,
 	voice: string,
-): Promise<string> {
+): Promise<AudioResult> {
 	const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
 
 	if (!apiKey) {
@@ -61,9 +66,13 @@ export async function generateAudio(
 			contents,
 		});
 
-		// Generate unique filename
+		// Create project folder
 		const timestamp = Date.now();
-		const filename = `audio-${timestamp}`;
+		const projectId = `project-${timestamp}`;
+		const projectDir = join(TEMP_DIR, projectId);
+		await mkdir(projectDir, { recursive: true });
+
+		const filename = `audio`;
 		let savedFilePath = "";
 
 		for await (const chunk of response) {
@@ -90,7 +99,10 @@ export async function generateAudio(
 					);
 				}
 
-				savedFilePath = join(TEMP_DIR, `${filename}.${fileExtension}`);
+				savedFilePath = join(
+					projectDir,
+					`${filename}.${fileExtension}`,
+				);
 				await writeFile(savedFilePath, buffer);
 				console.log(`Audio file saved: ${savedFilePath}`);
 			} else if (chunk.text) {
@@ -102,9 +114,12 @@ export async function generateAudio(
 			throw new Error("No audio data received from Gemini TTS");
 		}
 
-		// Return the URL path (relative to the server root)
-		const urlPath = `/temp/${savedFilePath.split("temp/")[1]}`;
-		return urlPath;
+		// Return the URL path and projectId
+		const urlPath = `/temp/${projectId}/${savedFilePath.split(`${projectId}/`)[1]}`;
+		return {
+			audioUrl: urlPath,
+			projectId: projectId,
+		};
 	} catch (error) {
 		console.error("TTS generation error:", error);
 		throw new Error("Failed to generate audio with Google Gemini TTS");

@@ -1,8 +1,10 @@
 // Videgen Client-Side JavaScript
 
-// Global variables to store audio data
+// Global variables to store project data
+let currentProjectId = null;
 let currentAudioUrl = null;
 let currentAudioDuration = null;
+let currentImages = [];
 
 // Generate script from topic
 async function generateScript() {
@@ -82,11 +84,12 @@ async function generateAudio() {
 			throw new Error(error.error || "Failed to generate audio");
 		}
 
-		const { audioUrl, duration } = await audioRes.json();
+		const { audioUrl, duration, projectId } = await audioRes.json();
 
-		// Store audio data for later use
+		// Store audio and project data for later use
 		currentAudioUrl = audioUrl;
 		currentAudioDuration = duration;
+		currentProjectId = projectId;
 
 		// Display the audio player
 		document.getElementById("audio-player").src = audioUrl;
@@ -138,11 +141,12 @@ async function regenerateAudio() {
 			throw new Error(error.error || "Failed to generate audio");
 		}
 
-		const { audioUrl, duration } = await audioRes.json();
+		const { audioUrl, duration, projectId } = await audioRes.json();
 
-		// Update audio data
+		// Update audio and project data
 		currentAudioUrl = audioUrl;
 		currentAudioDuration = duration;
+		currentProjectId = projectId;
 
 		// Update the audio player
 		document.getElementById("audio-player").src = audioUrl;
@@ -161,12 +165,139 @@ async function regenerateAudio() {
 	}
 }
 
-// Proceed to video generation after audio is approved
-async function proceedToVideo() {
+// Generate images from script
+async function generateImages() {
 	const script = document.getElementById("script").value;
 
-	if (!currentAudioUrl || !currentAudioDuration) {
+	if (!currentProjectId || !currentAudioDuration) {
 		showError("Please generate audio first");
+		return;
+	}
+
+	hideError();
+	disableButton("generate-images-btn");
+
+	try {
+		showProgress("Generating 4-8 images based on your script...");
+		const imagesRes = await fetch("/api/recommend-images", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				script: script.trim(),
+				duration: currentAudioDuration,
+				projectId: currentProjectId,
+			}),
+		});
+
+		if (!imagesRes.ok) {
+			const error = await imagesRes.json();
+			throw new Error(error.error || "Failed to generate images");
+		}
+
+		const { images } = await imagesRes.json();
+
+		// Store images
+		currentImages = images;
+
+		// Display images
+		displayImages(images);
+
+		// Show images section
+		document.getElementById("images-section").classList.remove("hidden");
+
+		hideProgress();
+		enableButton("generate-images-btn");
+
+		// Scroll to images section
+		document
+			.getElementById("images-section")
+			.scrollIntoView({ behavior: "smooth" });
+	} catch (error) {
+		console.error("Error:", error);
+		showError(
+			error.message || "Failed to generate images. Please try again.",
+		);
+		hideProgress();
+		enableButton("generate-images-btn");
+	}
+}
+
+// Regenerate images with different results
+async function regenerateImages() {
+	const script = document.getElementById("script").value;
+
+	if (!currentProjectId || !currentAudioDuration) {
+		showError("Please generate audio first");
+		return;
+	}
+
+	hideError();
+	disableButton("regenerate-images-btn");
+
+	try {
+		showProgress("Regenerating images...");
+		const imagesRes = await fetch("/api/recommend-images", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				script: script.trim(),
+				duration: currentAudioDuration,
+				projectId: currentProjectId,
+			}),
+		});
+
+		if (!imagesRes.ok) {
+			const error = await imagesRes.json();
+			throw new Error(error.error || "Failed to regenerate images");
+		}
+
+		const { images } = await imagesRes.json();
+
+		// Update stored images
+		currentImages = images;
+
+		// Display updated images
+		displayImages(images);
+
+		hideProgress();
+		enableButton("regenerate-images-btn");
+	} catch (error) {
+		console.error("Error:", error);
+		showError(
+			error.message ||
+				"Failed to regenerate images. Please try again.",
+		);
+		hideProgress();
+		enableButton("regenerate-images-btn");
+	}
+}
+
+// Display images in the grid
+function displayImages(images) {
+	const grid = document.getElementById("images-grid");
+	grid.innerHTML = "";
+
+	images.forEach((image, index) => {
+		const div = document.createElement("div");
+		div.className = "relative group";
+		div.innerHTML = `
+			<img
+				src="${image.imageUrl}"
+				alt="${image.imagePrompt}"
+				class="w-full h-32 object-cover rounded-lg shadow-md hover:shadow-xl transition"
+			/>
+			<div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition">
+				${index + 1}. ${image.imagePrompt}
+			</div>
+		`;
+		grid.appendChild(div);
+	});
+}
+
+// Proceed to video generation after images are approved
+async function proceedToVideo() {
+	if (!currentAudioUrl || !currentImages.length) {
+		showError("Please generate audio and images first");
 		return;
 	}
 
@@ -174,30 +305,15 @@ async function proceedToVideo() {
 	disableButton("proceed-video-btn");
 
 	try {
-		// Step 1: Get image recommendations
-		showProgress("Finding relevant images...");
-		const imagesRes = await fetch("/api/recommend-images", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				script: script.trim(),
-				duration: currentAudioDuration,
-			}),
-		});
-
-		if (!imagesRes.ok) {
-			const error = await imagesRes.json();
-			throw new Error(error.error || "Failed to recommend images");
-		}
-
-		const { images } = await imagesRes.json();
-
-		// Step 2: Generate video
+		// Generate video with stored audio and images
 		showProgress("Creating your video (this may take 2-3 minutes)...");
 		const videoRes = await fetch("/api/generate-video", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ audioUrl: currentAudioUrl, images }),
+			body: JSON.stringify({
+				audioUrl: currentAudioUrl,
+				images: currentImages,
+			}),
 		});
 
 		if (!videoRes.ok) {
@@ -235,13 +351,16 @@ function resetApp() {
 	document.getElementById("script").value = "";
 	document.getElementById("script-section").classList.add("hidden");
 	document.getElementById("audio-section").classList.add("hidden");
+	document.getElementById("images-section").classList.add("hidden");
 	document.getElementById("video-section").classList.add("hidden");
 	hideError();
 	hideProgress();
 
-	// Reset audio data
+	// Reset all project data
+	currentProjectId = null;
 	currentAudioUrl = null;
 	currentAudioDuration = null;
+	currentImages = [];
 
 	// Scroll to top
 	window.scrollTo({ top: 0, behavior: "smooth" });

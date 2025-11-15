@@ -1,8 +1,30 @@
 import { GoogleGenAI } from "@google/genai";
+import { writeFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
+import { join } from "path";
 
 const genAI = new GoogleGenAI({
 	apiKey: process.env.GOOGLE_GEMINI_API_KEY || "",
 });
+
+const TEMP_DIR = join(process.cwd(), "src", "temp");
+
+// Ensure directory exists
+async function ensureDir(dir: string) {
+	if (!existsSync(dir)) {
+		await mkdir(dir, { recursive: true });
+	}
+}
+
+// Download image from URL
+async function downloadImage(url: string, filepath: string): Promise<void> {
+	const response = await fetch(url);
+	if (!response.ok) {
+		throw new Error(`Failed to download image: ${response.statusText}`);
+	}
+	const buffer = await response.arrayBuffer();
+	await writeFile(filepath, Buffer.from(buffer));
+}
 
 interface ImageRecommendation {
 	imageUrl: string;
@@ -18,6 +40,7 @@ interface ImageRecommendation {
 export async function recommendImages(
 	script: string,
 	duration: number,
+	projectId: string,
 ): Promise<ImageRecommendation[]> {
 	const unsplashAccessKey = process.env.UNSPLASH_ACCESS_KEY;
 
@@ -26,12 +49,16 @@ export async function recommendImages(
 	}
 
 	try {
+		// Create project directory
+		const projectDir = join(TEMP_DIR, projectId);
+		await ensureDir(projectDir);
+
 		// Step 1: Use Gemini to extract key visual concepts from the script
-		const conceptsPrompt = `Analyze this video script and extract 4-5 key visual concepts that would make good background images for each section.
+		const conceptsPrompt = `Analyze this video script and extract 4-8 key visual concepts that would make good background images for each section.
 
 Script: "${script}"
 
-You are an expert at analyzing scripts and identifying visual concepts. Return ONLY a JSON array of image search queries, like:
+You are an expert at analyzing scripts and identifying visual concepts. Return ONLY a JSON array of image search queries (4-8 items), like:
 ["rice field with seedlings", "farmer planting rice", "mature rice plants", "rice harvest"]
 
 Return only the JSON array, no additional text or explanation.`;
@@ -55,7 +82,20 @@ Return only the JSON array, no additional text or explanation.`;
 			searchQueries = ["education", "learning", "knowledge", "study"];
 		}
 
-		// Step 2: Fetch images from Unsplash for each concept
+		// Ensure we have 4-8 images
+		if (searchQueries.length < 4) {
+			searchQueries = [
+				...searchQueries,
+				"education",
+				"learning",
+				"knowledge",
+			];
+		}
+		if (searchQueries.length > 8) {
+			searchQueries = searchQueries.slice(0, 8);
+		}
+
+		// Step 2: Fetch and download images from Unsplash
 		const images: ImageRecommendation[] = [];
 		const segmentDuration = duration / searchQueries.length;
 
@@ -75,26 +115,34 @@ Return only the JSON array, no additional text or explanation.`;
 				if (response.ok) {
 					const data: { urls: { regular: string } } =
 						await response.json();
+					const imageUrl = data?.urls?.regular;
+
+					// Download image and save locally
+					const filename = `image-${i + 1}.jpg`;
+					const filepath = join(projectDir, filename);
+					await downloadImage(imageUrl, filepath);
+
+					// Return local URL
+					const localUrl = `/temp/${projectId}/${filename}`;
 					images.push({
-						imageUrl: data?.urls?.regular,
+						imageUrl: localUrl,
 						imagePrompt: query,
 						timestamp: i * segmentDuration,
 						duration: segmentDuration,
 						order: i + 1,
 					});
+
+					console.log(`Image ${i + 1} saved: ${localUrl}`);
 				} else {
-					// Fallback: Use a placeholder image
-					images.push({
-						imageUrl: `https://via.placeholder.com/1920x1080/4F46E5/FFFFFF?text=${encodeURIComponent(query)}`,
-						imagePrompt: query,
-						timestamp: i * segmentDuration,
-						duration: segmentDuration,
-						order: i + 1,
-					});
+					throw new Error("Failed to fetch from Unsplash");
 				}
 			} catch (error) {
 				console.error(`Error fetching image for "${query}":`, error);
-				// Use placeholder on error
+				// Create a placeholder
+				const filename = `image-${i + 1}-placeholder.txt`;
+				const filepath = join(projectDir, filename);
+				await writeFile(filepath, query);
+
 				images.push({
 					imageUrl: `https://via.placeholder.com/1920x1080/4F46E5/FFFFFF?text=${encodeURIComponent(query)}`,
 					imagePrompt: query,

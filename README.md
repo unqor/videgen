@@ -20,7 +20,7 @@
 - **Backend**: Hono.js (TypeScript)
 - **Frontend**: HTML/CSS/JavaScript + Tailwind CSS (CDN)
 - **Runtime**: Bun or Node.js
-- **AI Services**: Google Gemini (2.0 Flash / 1.5 Pro), OpenAI GPT-4, Google Cloud TTS, Google Veo 3, Unsplash
+- **AI Services**: Google Gemini (2.0 Flash / 1.5 Pro), Google Cloud TTS, Google Veo 3, Unsplash
 - **Storage**: Temporary files only (no database)
 
 ## 🚀 Quick Start

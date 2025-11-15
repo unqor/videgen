@@ -1,7 +1,7 @@
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/genai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const genAI = new GoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GEMINI_API_KEY || '',
 });
 
 interface ImageRecommendation {
@@ -26,31 +26,22 @@ export async function recommendImages(
   }
 
   try {
-    // Step 1: Use OpenAI to extract key visual concepts from the script
+    // Step 1: Use Gemini to extract key visual concepts from the script
     const conceptsPrompt = `Analyze this video script and extract 4-5 key visual concepts that would make good background images for each section.
 
 Script: "${script}"
 
-Return ONLY a JSON array of image search queries, like:
-["rice field with seedlings", "farmer planting rice", "mature rice plants", "rice harvest"]`;
+You are an expert at analyzing scripts and identifying visual concepts. Return ONLY a JSON array of image search queries, like:
+["rice field with seedlings", "farmer planting rice", "mature rice plants", "rice harvest"]
 
-    const conceptsResponse = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert at analyzing scripts and identifying visual concepts. Always return valid JSON only.'
-        },
-        {
-          role: 'user',
-          content: conceptsPrompt
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 200,
+Return only the JSON array, no additional text or explanation.`;
+
+    const conceptsResponse = await genAI.generateContent({
+      model: 'gemini-2.0-flash-exp',
+      contents: [{ role: 'user', parts: [{ text: conceptsPrompt }] }],
     });
 
-    const conceptsText = conceptsResponse.choices[0]?.message?.content?.trim();
+    const conceptsText = conceptsResponse.response.text().trim();
     if (!conceptsText) {
       throw new Error('No concepts generated');
     }

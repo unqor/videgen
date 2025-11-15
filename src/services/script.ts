@@ -1,6 +1,8 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY || '');
+const genAI = new GoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GEMINI_API_KEY || '',
+});
 
 export type Language = 'english' | 'indonesian';
 export type GeminiModel = 'gemini-2.0-flash-exp' | 'gemini-1.5-pro';
@@ -64,11 +66,12 @@ Tulis HANYA narasi skrip, tanpa format atau petunjuk panggung tambahan.`,
     console.log(`Generating script with model: ${model}, language: ${language}`);
 
     // Use the selected Gemini model
-    const generativeModel = genAI.getGenerativeModel({ model });
+    const result = await genAI.generateContent({
+      model,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
 
-    const result = await generativeModel.generateContent(prompt);
-    const response = await result.response;
-    const script = response.text().trim();
+    const script = result.response.text().trim();
 
     if (!script) {
       throw new Error('No script generated from Gemini');

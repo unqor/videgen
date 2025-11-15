@@ -24,13 +24,13 @@ app.use('/temp/*', serveStatic({ root: './src' }));
 // Generate script from topic
 app.post('/api/generate-script', async (c) => {
   try {
-    const { topic } = await c.req.json();
+    const { topic, language = 'english', model = 'gemini-2.0-flash-exp' } = await c.req.json();
 
     if (!topic || topic.trim().length === 0) {
       return c.json({ error: 'Topic is required' }, 400);
     }
 
-    const script = await generateScript(topic);
+    const script = await generateScript({ topic: topic.trim(), language, model });
     return c.json({ script });
   } catch (error) {
     console.error('Error generating script:', error);

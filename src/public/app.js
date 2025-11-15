@@ -3,6 +3,8 @@
 // Generate script from topic
 async function generateScript() {
   const topic = document.getElementById('topic').value;
+  const language = document.getElementById('language').value;
+  const model = document.getElementById('model').value;
 
   if (!topic || topic.trim().length === 0) {
     showError('Please enter a topic or question');
@@ -10,14 +12,20 @@ async function generateScript() {
   }
 
   hideError();
-  showProgress('Generating script with AI...');
+  const modelName = model === 'gemini-2.0-flash-exp' ? 'Gemini 2.0 Flash' : 'Gemini 1.5 Pro';
+  const langName = language === 'english' ? 'English' : 'Indonesian';
+  showProgress(`Generating ${langName} script with ${modelName}...`);
   disableButton('generate-script-btn');
 
   try {
     const res = await fetch('/api/generate-script', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic: topic.trim() })
+      body: JSON.stringify({
+        topic: topic.trim(),
+        language: language,
+        model: model
+      })
     });
 
     if (!res.ok) {

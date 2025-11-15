@@ -7,6 +7,8 @@
 ## ✨ Features
 
 - 🎬 **One-Click Video Generation** - From topic to video in minutes
+- 🌍 **Multi-Language Support** - Generate scripts in English or Indonesian
+- 🤖 **Flexible AI Models** - Choose between Gemini 2.0 Flash (fast) or Gemini 1.5 Pro (quality)
 - 🎙️ **AI Narration** - Natural-sounding text-to-speech voices
 - ✏️ **Editable Scripts** - Full control over your content
 - 🖼️ **Smart Visuals** - AI-recommended images from Unsplash
@@ -18,7 +20,7 @@
 - **Backend**: Hono.js (TypeScript)
 - **Frontend**: HTML/CSS/JavaScript + Tailwind CSS (CDN)
 - **Runtime**: Bun or Node.js
-- **AI Services**: OpenAI GPT-4, Google Cloud TTS, Google Veo 3, Unsplash
+- **AI Services**: Google Gemini (2.0 Flash / 1.5 Pro), Google Cloud TTS, Google Veo 3, Unsplash
 - **Storage**: Temporary files only (no database)
 
 ## 🚀 Quick Start
@@ -58,10 +60,12 @@ videgen/
 ## 🎯 How It Works
 
 1. **Enter Topic** → Type your educational question
-2. **Generate Script** → AI creates a narration script
-3. **Edit Script** → Review and customize the text
-4. **Generate Video** → AI creates audio, finds images, assembles video
-5. **Download** → Get your MP4 file
+2. **Choose Language** → Select English or Indonesian
+3. **Select AI Model** → Choose Gemini 2.0 Flash (fast) or 1.5 Pro (quality)
+4. **Generate Script** → AI creates a narration script in your chosen language
+5. **Edit Script** → Review and customize the text
+6. **Generate Video** → AI creates audio, finds images, assembles video
+7. **Download** → Get your MP4 file
 
 ## 💰 Cost
 

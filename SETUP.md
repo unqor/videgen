@@ -4,8 +4,7 @@
 
 - **Bun** (recommended) or **Node.js 20+**
 - API Keys for:
-  - Google Gemini (Script Generation)
-  - OpenAI (Image Concept Extraction)
+  - Google Gemini (Script Generation & Image Concept Extraction)
   - Google Cloud (Text-to-Speech)
   - Google Veo 3 (Video Generation)
   - Unsplash (Images)
@@ -49,7 +48,6 @@ NODE_ENV=development
 
 # AI Service API Keys
 GOOGLE_GEMINI_API_KEY=your-google-gemini-api-key-here
-OPENAI_API_KEY=sk-your-openai-api-key-here
 GOOGLE_CLOUD_API_KEY=your-google-cloud-api-key-here
 GOOGLE_VEO3_API_KEY=your-google-veo3-api-key-here
 UNSPLASH_ACCESS_KEY=your-unsplash-access-key-here
@@ -65,12 +63,7 @@ TEMP_DIR=./src/temp
 2. Create a new API key
 3. Copy the key
 
-#### OpenAI API Key
-1. Go to https://platform.openai.com/api-keys
-2. Create a new API key
-3. Copy the key (starts with `sk-`)
-
-**Note**: OpenAI is only used for analyzing scripts to extract visual concepts for image recommendations. Gemini is used for script generation.
+**Note**: Gemini is used for both script generation and analyzing scripts to extract visual concepts for image recommendations.
 
 #### Google Cloud Text-to-Speech
 1. Go to https://console.cloud.google.com/
@@ -122,9 +115,9 @@ videgen/
 ├── src/
 │   ├── index.ts              # Main Hono.js server
 │   ├── services/
-│   │   ├── script.ts         # OpenAI script generation
+│   │   ├── script.ts         # Gemini script generation
 │   │   ├── tts.ts            # Google Cloud TTS
-│   │   ├── images.ts         # Unsplash image search
+│   │   ├── images.ts         # Gemini image concept extraction + Unsplash
 │   │   └── video.ts          # Google Veo 3 (mock)
 │   ├── public/
 │   │   ├── index.html        # Frontend UI
@@ -244,13 +237,12 @@ curl http://localhost:3000/health
 ## Cost Estimation
 
 Per video (approximate):
-- Google Gemini Flash: ~$0.001 (script generation)
-- OpenAI GPT-4: ~$0.01 (image concept extraction)
+- Google Gemini Flash: ~$0.002 (script generation + image concept extraction)
 - Google Cloud TTS: $0.02
 - Google Veo 3: $0.10-0.50
 - Unsplash: Free (50 requests/hour)
 
-**Total per video**: ~$0.13-0.53 (cheaper with Gemini!)
+**Total per video**: ~$0.12-0.52 (very affordable!)
 
 ## Next Steps
 

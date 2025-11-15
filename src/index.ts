@@ -48,7 +48,12 @@ app.post('/api/generate-audio', async (c) => {
     }
 
     const audioUrl = await generateAudio(script, voice || 'en-US-Neural2-J');
-    return c.json({ audioUrl, duration: 60 }); // TODO: Calculate actual duration
+
+    // Calculate duration based on word count (average speaking rate: 150 words per minute)
+    const wordCount = script.trim().split(/\s+/).length;
+    const duration = Math.ceil((wordCount / 150) * 60); // Duration in seconds
+
+    return c.json({ audioUrl, duration });
   } catch (error) {
     console.error('Error generating audio:', error);
     return c.json({ error: 'Failed to generate audio' }, 500);

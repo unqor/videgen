@@ -1,33 +1,38 @@
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenAI } from "@google/genai";
 
-const genAI = new GoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GEMINI_API_KEY || '',
+const genAI = new GoogleGenAI({
+	apiKey: process.env.GOOGLE_GEMINI_API_KEY || "",
 });
 
-export type Language = 'english' | 'indonesian';
-export type GeminiModel = 'gemini-2.0-flash-exp' | 'gemini-1.5-pro';
+export type Language = "english" | "indonesian";
+export type GeminiModel = "gemini-2.5-flash" | "gemini-2.5-pro";
 
 interface ScriptGenerationOptions {
-  topic: string;
-  language?: Language;
-  model?: GeminiModel;
+	topic: string;
+	language?: Language;
+	model?: GeminiModel;
 }
 
 /**
  * Generate an educational script from a topic using Google Gemini
  */
 export async function generateScript(
-  topicOrOptions: string | ScriptGenerationOptions
+	topicOrOptions: string | ScriptGenerationOptions,
 ): Promise<string> {
-  // Handle both old string format and new options format for backwards compatibility
-  const options: ScriptGenerationOptions = typeof topicOrOptions === 'string'
-    ? { topic: topicOrOptions, language: 'english', model: 'gemini-2.0-flash-exp' }
-    : topicOrOptions;
+	// Handle both old string format and new options format for backwards compatibility
+	const options: ScriptGenerationOptions =
+		typeof topicOrOptions === "string"
+			? {
+					topic: topicOrOptions,
+					language: "english",
+					model: "gemini-2.5-flash",
+				}
+			: topicOrOptions;
 
-  const { topic, language = 'english', model = 'gemini-2.0-flash-exp' } = options;
+	const { topic, language = "english", model = "gemini-2.5-flash" } = options;
 
-  const prompts = {
-    english: `You are an expert educational content creator. Create a clear, engaging, and informative script for a faceless explainer video about the following topic:
+	const prompts = {
+		english: `You are an expert educational content creator. Create a clear, engaging, and informative script for a faceless explainer video about the following topic:
 
 "${topic}"
 
@@ -43,7 +48,7 @@ Requirements:
 
 Write ONLY the script narration, no additional formatting or stage directions.`,
 
-    indonesian: `Anda adalah pembuat konten edukatif yang ahli. Buatlah skrip yang jelas, menarik, dan informatif untuk video penjelasan tanpa wajah tentang topik berikut:
+		indonesian: `Anda adalah pembuat konten edukatif yang ahli. Buatlah skrip yang jelas, menarik, dan informatif untuk video penjelasan tanpa wajah tentang topik berikut:
 
 "${topic}"
 
@@ -58,28 +63,32 @@ Persyaratan:
 - Tulis dalam BAHASA INDONESIA
 
 Tulis HANYA narasi skrip, tanpa format atau petunjuk panggung tambahan.`,
-  };
+	};
 
-  const prompt = prompts[language];
+	const prompt = prompts[language];
 
-  try {
-    console.log(`Generating script with model: ${model}, language: ${language}`);
+	try {
+		console.log(
+			`Generating script with model: ${model}, language: ${language}`,
+		);
 
-    // Use the selected Gemini model
-    const result = await genAI.generateContent({
-      model,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    });
+		// Use the selected Gemini model
+		const result = await genAI.models.generateContent({
+			model,
+			contents: [{ role: "user", parts: [{ text: prompt }] }],
+		});
 
-    const script = result.response.text().trim();
+		const script = result.text?.trim();
 
-    if (!script) {
-      throw new Error('No script generated from Gemini');
-    }
+		if (!script) {
+			throw new Error("No script generated from Gemini");
+		}
 
-    return script;
-  } catch (error) {
-    console.error('Gemini API error:', error);
-    throw new Error(`Failed to generate script with Google Gemini (${model})`);
-  }
+		return script;
+	} catch (error) {
+		console.error("Gemini API error:", error);
+		throw new Error(
+			`Failed to generate script with Google Gemini (${model})`,
+		);
+	}
 }

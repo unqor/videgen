@@ -1,157 +1,212 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Videgen - AI Video Generator</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    .hidden { display: none !important; }
-  </style>
-</head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen py-8 px-4">
-  <div class="max-w-3xl mx-auto">
-    <!-- Header -->
-    <div class="text-center mb-8">
-      <h1 class="text-5xl font-bold text-gray-800 mb-2">🎬 Videgen</h1>
-      <p class="text-gray-600">AI-Powered Faceless Video Generator</p>
-    </div>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Videgen - AI Video Generator</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<style>
+			.hidden {
+				display: none !important;
+			}
+		</style>
+	</head>
+	<body
+		class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen py-8 px-4"
+	>
+		<div class="max-w-3xl mx-auto">
+			<!-- Header -->
+			<div class="text-center mb-8">
+				<h1 class="text-5xl font-bold text-gray-800 mb-2">
+					🎬 Videgen
+				</h1>
+				<p class="text-gray-600">AI-Powered Faceless Video Generator</p>
+			</div>
 
-    <!-- Main Card -->
-    <div class="bg-white rounded-2xl shadow-2xl p-8">
+			<!-- Main Card -->
+			<div class="bg-white rounded-2xl shadow-2xl p-8">
+				<!-- Step 1: Topic Input -->
+				<div id="topic-section" class="mb-8">
+					<label
+						class="block text-sm font-semibold text-gray-700 mb-2"
+					>
+						📝 Enter your topic or question:
+					</label>
+					<input
+						type="text"
+						id="topic"
+						class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+						placeholder="Example: How long does it take to plant rice until ready for harvest?"
+					/>
 
-      <!-- Step 1: Topic Input -->
-      <div id="topic-section" class="mb-8">
-        <label class="block text-sm font-semibold text-gray-700 mb-2">
-          📝 Enter your topic or question:
-        </label>
-        <input
-          type="text"
-          id="topic"
-          class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-          placeholder="Example: How long does it take to plant rice until ready for harvest?"
-        />
+					<!-- Language and Model Selection -->
+					<div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div>
+							<label
+								class="block text-sm font-semibold text-gray-700 mb-2"
+							>
+								🌍 Language:
+							</label>
+							<select
+								id="language"
+								class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+							>
+								<option value="english">English</option>
+								<option value="indonesian">
+									Bahasa Indonesia
+								</option>
+							</select>
+						</div>
+						<div>
+							<label
+								class="block text-sm font-semibold text-gray-700 mb-2"
+							>
+								🤖 AI Model:
+							</label>
+							<select
+								id="model"
+								class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+							>
+								<option value="gemini-2.5-flash">
+									Gemini 2.5 Flash (Fast & Cheap)
+								</option>
+								<option value="gemini-2.5-pro">
+									Gemini 2.5 Pro (High Quality)
+								</option>
+							</select>
+						</div>
+					</div>
 
-        <!-- Language and Model Selection -->
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              🌍 Language:
-            </label>
-            <select id="language" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-              <option value="english">English</option>
-              <option value="indonesian">Bahasa Indonesia</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              🤖 AI Model:
-            </label>
-            <select id="model" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-              <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Fast & Cheap)</option>
-              <option value="gemini-1.5-pro">Gemini 1.5 Pro (High Quality)</option>
-            </select>
-          </div>
-        </div>
+					<button
+						onclick="generateScript()"
+						id="generate-script-btn"
+						class="mt-4 w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
+					>
+						Generate Script ✨
+					</button>
+				</div>
 
-        <button
-          onclick="generateScript()"
-          id="generate-script-btn"
-          class="mt-4 w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
-        >
-          Generate Script ✨
-        </button>
-      </div>
+				<!-- Step 2: Script Editor -->
+				<div id="script-section" class="hidden mb-8">
+					<label
+						class="block text-sm font-semibold text-gray-700 mb-2"
+					>
+						✏️ Review and edit your script:
+					</label>
+					<textarea
+						id="script"
+						rows="12"
+						class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm transition"
+					></textarea>
 
-      <!-- Step 2: Script Editor -->
-      <div id="script-section" class="hidden mb-8">
-        <label class="block text-sm font-semibold text-gray-700 mb-2">
-          ✏️ Review and edit your script:
-        </label>
-        <textarea
-          id="script"
-          rows="12"
-          class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm transition"
-        ></textarea>
+					<div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div>
+							<label
+								class="block text-sm font-semibold text-gray-700 mb-2"
+							>
+								🎤 Select voice:
+							</label>
+							<select
+								id="voice"
+								class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+							>
+								<option value="en-US-Neural2-J">
+									English (Male - Deep)
+								</option>
+								<option value="en-US-Neural2-F">
+									English (Female - Clear)
+								</option>
+								<option value="en-US-Neural2-C">
+									English (Female - Warm)
+								</option>
+								<option value="en-US-Neural2-D">
+									English (Male - Neutral)
+								</option>
+							</select>
+						</div>
+						<div class="flex items-end">
+							<button
+								onclick="generateVideo()"
+								id="generate-video-btn"
+								class="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition shadow-md"
+							>
+								Generate Video 🎬
+							</button>
+						</div>
+					</div>
+				</div>
 
-        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-2">
-              🎤 Select voice:
-            </label>
-            <select id="voice" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-              <option value="en-US-Neural2-J">English (Male - Deep)</option>
-              <option value="en-US-Neural2-F">English (Female - Clear)</option>
-              <option value="en-US-Neural2-C">English (Female - Warm)</option>
-              <option value="en-US-Neural2-D">English (Male - Neutral)</option>
-            </select>
-          </div>
-          <div class="flex items-end">
-            <button
-              onclick="generateVideo()"
-              id="generate-video-btn"
-              class="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition shadow-md"
-            >
-              Generate Video 🎬
-            </button>
-          </div>
-        </div>
-      </div>
+				<!-- Step 3: Progress Indicator -->
+				<div id="progress" class="hidden mb-8">
+					<div
+						class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 text-center"
+					>
+						<div class="flex justify-center mb-4">
+							<div
+								class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"
+							></div>
+						</div>
+						<p
+							id="status"
+							class="text-lg font-medium text-blue-700"
+						></p>
+						<p class="text-sm text-gray-600 mt-2">
+							This may take 2-3 minutes...
+						</p>
+					</div>
+				</div>
 
-      <!-- Step 3: Progress Indicator -->
-      <div id="progress" class="hidden mb-8">
-        <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 text-center">
-          <div class="flex justify-center mb-4">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-          </div>
-          <p id="status" class="text-lg font-medium text-blue-700"></p>
-          <p class="text-sm text-gray-600 mt-2">This may take 2-3 minutes...</p>
-        </div>
-      </div>
+				<!-- Step 4: Video Preview -->
+				<div id="video-section" class="hidden">
+					<h2 class="text-2xl font-bold text-gray-800 mb-4">
+						🎉 Your Video is Ready!
+					</h2>
+					<div class="bg-gray-100 rounded-lg p-4 mb-4">
+						<video
+							id="video-player"
+							controls
+							class="w-full rounded-lg shadow-lg"
+						></video>
+					</div>
+					<div class="flex gap-4">
+						<a
+							id="download-btn"
+							download="videgen-video.mp4"
+							class="flex-1 text-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition shadow-md cursor-pointer"
+						>
+							Download Video 📥
+						</a>
+						<button
+							onclick="resetApp()"
+							class="px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition"
+						>
+							Create New Video 🔄
+						</button>
+					</div>
+				</div>
 
-      <!-- Step 4: Video Preview -->
-      <div id="video-section" class="hidden">
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">🎉 Your Video is Ready!</h2>
-        <div class="bg-gray-100 rounded-lg p-4 mb-4">
-          <video
-            id="video-player"
-            controls
-            class="w-full rounded-lg shadow-lg"
-          ></video>
-        </div>
-        <div class="flex gap-4">
-          <a
-            id="download-btn"
-            download="videgen-video.mp4"
-            class="flex-1 text-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition shadow-md cursor-pointer"
-          >
-            Download Video 📥
-          </a>
-          <button
-            onclick="resetApp()"
-            class="px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition"
-          >
-            Create New Video 🔄
-          </button>
-        </div>
-      </div>
+				<!-- Error Display -->
+				<div id="error" class="hidden">
+					<div
+						class="bg-red-50 border-2 border-red-200 rounded-lg p-4"
+					>
+						<p class="text-red-700 font-medium">
+							❌ <span id="error-message"></span>
+						</p>
+					</div>
+				</div>
+			</div>
 
-      <!-- Error Display -->
-      <div id="error" class="hidden">
-        <div class="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-          <p class="text-red-700 font-medium">❌ <span id="error-message"></span></p>
-        </div>
-      </div>
+			<!-- Footer -->
+			<div class="text-center mt-8 text-gray-600 text-sm">
+				<p>
+					Powered by OpenAI, Google Cloud TTS, Google Veo 3, and
+					Unsplash
+				</p>
+				<p class="mt-2">Built with ❤️ using Hono.js</p>
+			</div>
+		</div>
 
-    </div>
-
-    <!-- Footer -->
-    <div class="text-center mt-8 text-gray-600 text-sm">
-      <p>Powered by OpenAI, Google Cloud TTS, Google Veo 3, and Unsplash</p>
-      <p class="mt-2">Built with ❤️ using Hono.js</p>
-    </div>
-  </div>
-
-  <script src="/app.js"></script>
-</body>
+		<script src="/app.js"></script>
+	</body>
 </html>

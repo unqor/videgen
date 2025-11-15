@@ -1,5 +1,9 @@
 // Videgen Client-Side JavaScript
 
+// Global variables to store audio data
+let currentAudioUrl = null;
+let currentAudioDuration = null;
+
 // Generate script from topic
 async function generateScript() {
 	const topic = document.getElementById("topic").value;
@@ -52,8 +56,8 @@ async function generateScript() {
 	}
 }
 
-// Generate complete video
-async function generateVideo() {
+// Generate audio from script
+async function generateAudio() {
 	const script = document.getElementById("script").value;
 	const voice = document.getElementById("voice").value;
 
@@ -63,10 +67,9 @@ async function generateVideo() {
 	}
 
 	hideError();
-	disableButton("generate-video-btn");
+	disableButton("generate-audio-btn");
 
 	try {
-		// Step 1: Generate audio
 		showProgress("Generating audio with AI voice...");
 		const audioRes = await fetch("/api/generate-audio", {
 			method: "POST",
@@ -81,12 +84,105 @@ async function generateVideo() {
 
 		const { audioUrl, duration } = await audioRes.json();
 
-		// Step 2: Get image recommendations
+		// Store audio data for later use
+		currentAudioUrl = audioUrl;
+		currentAudioDuration = duration;
+
+		// Display the audio player
+		document.getElementById("audio-player").src = audioUrl;
+		document.getElementById("audio-section").classList.remove("hidden");
+
+		// Set the regenerate voice selector to match current voice
+		document.getElementById("voice-regenerate").value = voice;
+
+		hideProgress();
+		enableButton("generate-audio-btn");
+
+		// Scroll to audio section
+		document
+			.getElementById("audio-section")
+			.scrollIntoView({ behavior: "smooth" });
+	} catch (error) {
+		console.error("Error:", error);
+		showError(
+			error.message || "Failed to generate audio. Please try again.",
+		);
+		hideProgress();
+		enableButton("generate-audio-btn");
+	}
+}
+
+// Regenerate audio with different voice
+async function regenerateAudio() {
+	const script = document.getElementById("script").value;
+	const voice = document.getElementById("voice-regenerate").value;
+
+	if (!script || script.trim().length === 0) {
+		showError("Script cannot be empty");
+		return;
+	}
+
+	hideError();
+	disableButton("regenerate-audio-btn");
+
+	try {
+		showProgress("Regenerating audio with new voice...");
+		const audioRes = await fetch("/api/generate-audio", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ script: script.trim(), voice }),
+		});
+
+		if (!audioRes.ok) {
+			const error = await audioRes.json();
+			throw new Error(error.error || "Failed to generate audio");
+		}
+
+		const { audioUrl, duration } = await audioRes.json();
+
+		// Update audio data
+		currentAudioUrl = audioUrl;
+		currentAudioDuration = duration;
+
+		// Update the audio player
+		document.getElementById("audio-player").src = audioUrl;
+		document.getElementById("audio-player").load();
+		document.getElementById("audio-player").play();
+
+		hideProgress();
+		enableButton("regenerate-audio-btn");
+	} catch (error) {
+		console.error("Error:", error);
+		showError(
+			error.message || "Failed to regenerate audio. Please try again.",
+		);
+		hideProgress();
+		enableButton("regenerate-audio-btn");
+	}
+}
+
+// Proceed to video generation after audio is approved
+async function proceedToVideo() {
+	const script = document.getElementById("script").value;
+
+	if (!currentAudioUrl || !currentAudioDuration) {
+		showError("Please generate audio first");
+		return;
+	}
+
+	hideError();
+	disableButton("proceed-video-btn");
+
+	try {
+		// Step 1: Get image recommendations
 		showProgress("Finding relevant images...");
 		const imagesRes = await fetch("/api/recommend-images", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ script: script.trim(), duration }),
+			body: JSON.stringify({
+				script: script.trim(),
+				duration: currentAudioDuration,
+			}),
 		});
 
 		if (!imagesRes.ok) {
@@ -96,12 +192,12 @@ async function generateVideo() {
 
 		const { images } = await imagesRes.json();
 
-		// Step 3: Generate video
+		// Step 2: Generate video
 		showProgress("Creating your video (this may take 2-3 minutes)...");
 		const videoRes = await fetch("/api/generate-video", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ audioUrl, images }),
+			body: JSON.stringify({ audioUrl: currentAudioUrl, images }),
 		});
 
 		if (!videoRes.ok) {
@@ -117,7 +213,7 @@ async function generateVideo() {
 		document.getElementById("video-section").classList.remove("hidden");
 
 		hideProgress();
-		enableButton("generate-video-btn");
+		enableButton("proceed-video-btn");
 
 		// Scroll to video
 		document
@@ -129,7 +225,7 @@ async function generateVideo() {
 			error.message || "Failed to generate video. Please try again.",
 		);
 		hideProgress();
-		enableButton("generate-video-btn");
+		enableButton("proceed-video-btn");
 	}
 }
 
@@ -138,9 +234,14 @@ function resetApp() {
 	document.getElementById("topic").value = "";
 	document.getElementById("script").value = "";
 	document.getElementById("script-section").classList.add("hidden");
+	document.getElementById("audio-section").classList.add("hidden");
 	document.getElementById("video-section").classList.add("hidden");
 	hideError();
 	hideProgress();
+
+	// Reset audio data
+	currentAudioUrl = null;
+	currentAudioDuration = null;
 
 	// Scroll to top
 	window.scrollTo({ top: 0, behavior: "smooth" });
